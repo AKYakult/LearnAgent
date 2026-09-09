@@ -1,0 +1,17 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: MyAgent
+
+# 大模型连接配置（支持从根目录 .env 文件或系统环境变量中自动注入）
+llm:
+  sensenova:
+    api-key: ${SENSENOVA_API_KEY:}
+    base-url: ${SENSENOVA_BASE_URL:https://token.sensenova.cn/v1}
+    model-name: ${SENSENOVA_MODEL_NAME:sensenova-6.8-flash-lite}
+    log-requests: ${SENSENOVA_LOG_REQUESTS:true}
+    log-responses: ${SENSENOVA_LOG_RESPONSES:true}
+    temperature: 0.2
+    timeout-seconds: 60
