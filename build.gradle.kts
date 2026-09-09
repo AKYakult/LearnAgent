@@ -35,4 +35,6 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // 消除 JDK 21 下 Mockito / ByteBuddy 动态加载 Java Agent 以及 CDS 共享警告
+    jvmArgs("-XX:+EnableDynamicAgentLoading", "-Xshare:off")
 }

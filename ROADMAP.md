@@ -9,13 +9,13 @@
 
 ```mermaid
 flowchart TD
-    subgraph Phase1["阶段 1：极简 ReAct 核心（纯 Java 原生循环）"]
+    subgraph Phase1["阶段 1：极简 ReAct 核心（已完成 ✅）"]
         P1_1[接入 OpenAI 兼容 API] --> P1_2[定义工具接口 Tool]
         P1_2 --> P1_3[手写 ReAct 驱动引擎 While Loop]
         P1_3 --> P1_4[输出 Thought-Action-Observation 运行日志]
     end
 
-    subgraph Phase2["阶段 2：现代基础设施 Docker 化"]
+    subgraph Phase2["阶段 2：现代基础设施 Docker 化（当前进行 🚀）"]
         P2_1[Postgres + pgvector]
         P2_2[Qdrant 向量数据库]
         P2_3[Elasticsearch + Elasticvue]
@@ -49,65 +49,48 @@ flowchart TD
 
 ---
 
-## 阶段一：极简 ReAct 智能体（零中间件，解构底层原理）
+## 阶段一：极简 ReAct 智能体（状态：已完成 ✅）
 
-### 1.1 核心目标
-* 不使用任何外部数据库和重型组件，纯靠 Java 内存运行。
-* 不使用框架提供的全自动黑盒（如 `@AiService`），而是**亲手写出 ReAct（Reasoning + Acting）主循环**。
-* 亲眼看清大模型每一次的 `Thought`（思考）、`Action`（决策调用哪个工具）、`Action Input`（工具参数）、`Observation`（执行代码并给大模型反馈结果）、直到最终 `Final Answer`。
-
-### 1.2 核心步骤
-1. **依赖配置**：
-   * 在 `build.gradle.kts` 中引入 `langchain4j-open-ai` 基础包。
-2. **OpenAI 兼容客户端配置**：
-   * 在 `application.yaml` 声明通用模型配置（`base-url`, `api-key`, `model-name` 等），支持随时替换为你提供的自定义 API。
-3. **工具（Tools）定义**：
-   * 编写原生 Java 工具类，如：
-     * `CalculatorTool`：算术计算工具。
-     * `MockWeatherTool`：模拟天气或数据库查询工具。
-4. **手写 ReAct 执行引擎**：
-   * **Prompt 模板设计**：构造经典的 ReAct 引导词，约束模型必须按指定格式输出思考过程。
-   * **正则解析器**：用 Java 正则表达式抓取模型回复中的 `Action: [工具名]` 和 `Action Input: [参数]`。
-   * **调度循环（While Loop）**：
-     ```text
-     用户提问 
-       ↓
-     [循环开始]
-       LLM 推理 -> 得到 Thought 和 Action
-       IF 包含 Final Answer -> 输出最终结果，退出循环
-       IF 命中 Action -> 执行对应 Java 方法 -> 得到 Observation
-       将 Observation 追加到上下文，继续下一轮循环
-     [循环结束]
-     ```
-
-### 1.3 验证标准
-* 运行单元测试或控制台，输入复杂复合问题（例如：*“请查询北京现在的天气气温，然后把气温数值乘以 2.5 加上 10 等于多少？”*）。
-* 控制台清晰打印出每一步的思考、工具调用与观察反馈。
+### 1.1 落地成果与复盘
+* **秘钥与环境隔离**：引入 `dotenv-java`，根目录 `.env` 安全生效并被 `.gitignore` 严格保护；提供 `.env.example` 示例模板。
+* **模型标准对齐**：使用 LangChain4j 1.x 规范中的现代化核心接口 `ChatModel`；排查解决商汤开放平台 OpenAI 兼容域名路由问题，对齐为 `https://token.sensenova.cn/v1`。
+* **工具体系**：
+  * `AgentTool`：统一接口抽象。
+  * `CalculatorTool`：算术计算工具。
+  * `WeatherTool`：模拟天气查询工具。
+* **手写 ReAct 引擎**：
+  * `ReActEngine`：基于经典 Prompt 模板构造思考规范，利用 Java 正则与 `while` 循环完成了 `Thought -> Action -> Action Input -> Observation -> Final Answer` 的完整推理闭环。
+* **测试与验证**：
+  * `ReActAgentLiveTest`：成功执行“查询北京气温并做算术计算”的复合任务，多轮思考与工具执行全部调通。
+  * 优化 JVM 参数（`-XX:+EnableDynamicAgentLoading` 和 `-Xshare:off`），消除 JDK 21 下的干扰警告。
 
 ---
 
-## 阶段二：现代基础设施容器化（Docker 一键点火）
+## 阶段二：现代基础设施容器化（状态：当前进行 🚀）
 
 ### 2.1 核心目标
-* 采用 `docker-compose.yml` 统一拉起所有现代化数据基础设施，无需手动在宿主机繁琐安装。
+* 采用 `docker-compose.yml` 统一编排与拉起现代 AI 智能体开发必备的基础设施全家桶。
+* 共享已有的 `.env` 文件，实现数据库账号、MinIO 秘钥的无缝注入。
 
 ### 2.2 服务清单与端口规划
 
-| 服务名称 | 镜像与版本 | 映射端口 | 用途与说明 |
+| 服务名称 | 镜像与版本 | 宿主机端口 | 用途与说明 |
 | :--- | :--- | :--- | :--- |
-| **PostgreSQL + pgvector** | `pgvector/pgvector:pg16` | `5432:5432` | 业务元数据存储 + 关系型向量索引 |
-| **Qdrant** | `qdrant/qdrant:latest` | `6333:6333`, `6334:6334` | 专为海量高并发设计的专用向量数据库，自带 Web Dashboard（访问 `http://localhost:6333/dashboard`） |
-| **Elasticsearch** | `elasticsearch:8.x` | `9200:9200` | 关键词/全文倒排索引，用于混合检索关键字兜底 |
-| **Elasticvue** | `cars10/elasticvue:latest` | `8080:8080` | Elasticsearch 轻量级可视化 Web 管理界面（访问 `http://localhost:8080`） |
-| **MinIO** | `minio/minio:latest` | `9000:9000`, `9001:9001` | S3 兼容对象存储，存知识库原文件、图片等；Web 控制台在 `9001` |
+| **PostgreSQL + pgvector** | `pgvector/pgvector:pg16` | `5432:5432` | 业务元数据存储 + 关系型向量索引，用于长期会话历史与关系数据 |
+| **Qdrant** | `qdrant/qdrant:latest` | `6333:6333`, `6334:6334` | 专为海量高并发设计的向量数据库，自带 Web Dashboard（`http://localhost:6333/dashboard`） |
+| **Elasticsearch** | `elasticsearch:8.x` | `9200:9200` | 关键词/全文倒排索引，用于混合检索（与向量检索互补） |
+| **Elasticvue** | `cars10/elasticvue:latest` | `8080:8080` (或 `8088:8080`) | Elasticsearch 轻量级可视化 Web 管理控制台 |
+| **MinIO** | `minio/minio:latest` | `9000:9000`, `9001:9001` | S3 兼容的高性能对象存储，存知识库原始 PDF/Word 文件；Web 控制台在 `9001` |
 
-### 2.3 产出物
-* 根目录 `docker-compose.yml`
-* 数据库初始化 SQL（创建 vector 扩展、初始化库表）
+### 2.3 计划任务清单
+1. **编写 `docker-compose.yml`**：定义 PostgreSQL(pgvector)、Qdrant、Elasticsearch、Elasticvue、MinIO 容器配置与数据卷持久化目录。
+2. **编写 PostgreSQL 初始化脚本**：`docker/postgres/init.sql`，预先开启 `vector` 扩展并建立基础库。
+3. **编写服务验证与启动脚本**：一键命令启动与健康检查。
+4. **引入 Spring Boot 基础设施客户端依赖**：在 `build.gradle.kts` 中预备对应的客户端 SDK。
 
 ---
 
-## 阶段三：LangChain4j 声明式工程化演进
+## 阶段三：LangChain4j 声明式工程化演进（待开始 ⏳）
 
 ### 3.1 核心目标
 * 对比阶段一中手写的 `while` 循环，体验 LangChain4j 的声明式封装。
@@ -125,7 +108,7 @@ flowchart TD
 
 ---
 
-## 阶段四：知识库外挂与混合检索增强（RAG）
+## 阶段四：知识库外挂与混合检索增强（RAG）（待开始 ⏳）
 
 ### 4.1 核心目标
 * 让 Agent 拥有外部“海马体”与私域知识，解决大模型幻觉与信息滞后问题。
@@ -143,7 +126,7 @@ flowchart TD
 
 ---
 
-## 阶段五：进阶实战与生产能力
+## 阶段五：进阶实战与生产能力（待开始 ⏳）
 
 ### 5.1 核心能力
 1. **会话历史持久化**：
@@ -152,12 +135,3 @@ flowchart TD
    * 使用 `StreamingChatModel` + Spring WebFlux / `SseEmitter`，实现类似 ChatGPT 的逐字输出效果。
 3. **异常反思与自愈（Self-Correction）**：
    * 当 Agent 调用的工具返回错误异常时，引导模型反思参数或换用其他工具尝试。
-
----
-
-## 🚀 下一步执行指引
-
-当你准备好你的 API 接口文档后，我们将开启 **阶段一**：
-1. 请提供 API 文档（如 Base URL、模型标识、鉴权方式等）。
-2. 我们会在 [build.gradle.kts](file:///Users/jin/WorkSpaceIDEA/Spring/MyAgent/build.gradle.kts) 添加所需依赖，并在 [application.yaml](file:///Users/jin/WorkSpaceIDEA/Spring/MyAgent/src/main/resources/application.yaml) 中完成配置。
-3. 一步一步写出阶段一的核心代码与单元测试。
