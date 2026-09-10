@@ -128,21 +128,25 @@ flowchart TD
 
 ---
 
-## 阶段四：知识库外挂与混合检索增强（RAG）（待开始 ⏳）
+## 阶段四：知识库外挂与混合检索增强（RAG）（状态：当前进行 🚀）
 
 ### 4.1 核心目标
 * 让 Agent 拥有外部“海马体”与私域知识，解决大模型幻觉与信息滞后问题。
+* 从底层的向量语义距离、高维向量存储，到文档解析分块与混合检索（RRF），逐层打通。
 
-### 4.2 模块实现
-1. **文件上传与入库流水线**：
-   * 用户上传 PDF / Markdown / TXT 文档至 **MinIO**。
-   * 使用 LangChain4j `DocumentSplitter` 切分文本块（Chunks）。
-   * 调用 `EmbeddingModel` 转化为多维向量。
-   * 向量写入 **Qdrant**（或 **PgVector**）。
-   * 文本写入 **Elasticsearch** 建立分词倒排索引。
-2. **混合检索工具（Hybrid Search Tool）**：
-   * 同时发起向量语义检索与 Elasticsearch 全文检索。
-   * 融合结果并排重，封装为 `@Tool` 暴露给 Agent 使用。
+### 4.2 阶段四拆解任务清单
+- [x] **里程碑 4.1：向量基石与 Qdrant 语义检索闭环（已完成 ✅）**
+  * 引入 `langchain4j-bom` 统一版本管理，添加 `langchain4j-ollama` 与 `langchain4j-qdrant`。
+  * 接入本地 Ollama 驱动的 `bge-m3` 多语言嵌入模型（1024 维高维向量）。
+  * 编写 `QdrantConfig` 自动探活与建表（REST 探活创建 `myagent_knowledge` 集合，Cosine 度量）。
+  * 编写 `QdrantStoreLiveTest`，完成向量切片写入与跨领域语义检索验证（相似度得分 > 0.8）。
+- [ ] **里程碑 4.2：文档解析、切分与 MinIO 摄取流水线（待开始 ⏳）**
+  * 使用 LangChain4j `DocumentSplitter` 实现文本按段落切分与重叠块机制。
+  * 结合 MinIO 对象存储，实现本地知识库文档上传、下载与批量切片入库。
+- [ ] **里程碑 4.3：Elasticsearch 全文检索与混合检索融合（待开始 ⏳）**
+  * 文本切片同步入库 Elasticsearch 建立分词倒排索引。
+  * 实现双路召回（向量语义 + ES 倒排）与 RRF（倒数排名融合）排序。
+  * 封装为 `@Tool` 挂载到 Agent，让智能体具备查阅企业知识库回答问题的能力。
 
 ---
 

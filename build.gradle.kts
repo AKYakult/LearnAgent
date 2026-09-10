@@ -25,9 +25,13 @@ dependencies {
     // 读取 .env 环境变量支持
     implementation("io.github.cdimascio:dotenv-java:3.2.0")
 
-    // LangChain4j 核心与 OpenAI 兼容模型驱动
-    implementation("dev.langchain4j:langchain4j:1.20.0")
-    implementation("dev.langchain4j:langchain4j-open-ai:1.20.0")
+    // LangChain4j BOM 统一物料清单与各子模块
+    implementation(platform("dev.langchain4j:langchain4j-bom:1.20.0"))
+    implementation("dev.langchain4j:langchain4j")
+    implementation("dev.langchain4j:langchain4j-open-ai")
+    implementation("dev.langchain4j:langchain4j-qdrant")
+    implementation("dev.langchain4j:langchain4j-ollama")
+    implementation("dev.langchain4j:langchain4j-embeddings-bge-small-zh-v15")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

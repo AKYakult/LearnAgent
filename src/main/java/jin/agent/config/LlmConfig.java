@@ -1,6 +1,8 @@
 package jin.agent.config;
 
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.model.ollama.OllamaEmbeddingModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,7 +14,9 @@ import java.time.Duration;
 
 /**
  * 大模型客户端配置类
- * 负责构建 OpenAI 兼容格式的 ChatModel Bean
+ * 负责构建：
+ * 1. 业务推理大模型：OpenAI 兼容协议客户端 (商汤 SenseNova ChatModel)
+ * 2. 语义向量化模型：本地高性能开源向量客户端 (Ollama EmbeddingModel)
  */
 @Configuration
 public class LlmConfig {
@@ -40,6 +44,15 @@ public class LlmConfig {
     @Value("${llm.sensenova.timeout-seconds:60}")
     private Long timeoutSeconds;
 
+    @Value("${ollama.base-url:http://localhost:11434}")
+    private String ollamaBaseUrl;
+
+    @Value("${ollama.embedding-model-name:bge-m3}")
+    private String ollamaEmbeddingModelName;
+
+    @Value("${ollama.timeout-seconds:60}")
+    private Long ollamaTimeoutSeconds;
+
     @Bean
     public ChatModel chatModel() {
         if (apiKey == null || apiKey.isBlank() || "your_api_key_here".equals(apiKey)) {
@@ -53,6 +66,21 @@ public class LlmConfig {
                 .modelName(modelName)
                 .temperature(temperature)
                 .timeout(Duration.ofSeconds(timeoutSeconds))
+                .logRequests(logRequests)
+                .logResponses(logResponses)
+                .build();
+    }
+
+    /**
+     * 构建本地 Ollama EmbeddingModel Bean
+     * 负责将自然语言文本转化为高维语义向量（默认 bge-m3，1024 维）
+     */
+    @Bean
+    public EmbeddingModel embeddingModel() {
+        return OllamaEmbeddingModel.builder()
+                .baseUrl(ollamaBaseUrl)
+                .modelName(ollamaEmbeddingModelName)
+                .timeout(Duration.ofSeconds(ollamaTimeoutSeconds))
                 .logRequests(logRequests)
                 .logResponses(logResponses)
                 .build();
