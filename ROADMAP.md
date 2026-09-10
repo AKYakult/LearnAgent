@@ -76,17 +76,17 @@ flowchart TD
 
 | 服务名称 | 镜像与版本 | 宿主机端口 | 用途与说明 |
 | :--- | :--- | :--- | :--- |
-| **PostgreSQL + pgvector** | `pgvector/pgvector:pg16` | `5432:5432` | 业务元数据存储 + 关系型向量索引，用于长期会话历史与关系数据 |
+| **PostgreSQL + pgvector** | `pgvector/pgvector:pg18` | `5432:5432` | 业务元数据存储 + 关系型向量索引，用于长期会话历史与关系数据 |
 | **Qdrant** | `qdrant/qdrant:latest` | `6333:6333`, `6334:6334` | 专为海量高并发设计的向量数据库，自带 Web Dashboard（`http://localhost:6333/dashboard`） |
-| **Elasticsearch** | `elasticsearch:8.x` | `9200:9200` | 关键词/全文倒排索引，用于混合检索（与向量检索互补） |
-| **Elasticvue** | `cars10/elasticvue:latest` | `8080:8080` (或 `8088:8080`) | Elasticsearch 轻量级可视化 Web 管理控制台 |
-| **MinIO** | `minio/minio:latest` | `9000:9000`, `9001:9001` | S3 兼容的高性能对象存储，存知识库原始 PDF/Word 文件；Web 控制台在 `9001` |
+| **Elasticsearch** | `docker.elastic.co/elasticsearch/elasticsearch:8.15.0` | `9200:9200` | 关键词/全文倒排索引，用于混合检索（与向量检索互补） |
+| **Elasticvue** | `cars10/elasticvue:latest` | `8088:8080` | Elasticsearch 轻量级可视化 Web 管理控制台 |
+| **MinIO** | `minio/minio:latest` | `9100:9000`, `9101:9001` | S3 兼容的高性能对象存储；Web 控制台在 `9101`（避开本地已有项目的 9000/9001） |
 
 ### 2.3 计划任务清单
-1. **编写 `docker-compose.yml`**：定义 PostgreSQL(pgvector)、Qdrant、Elasticsearch、Elasticvue、MinIO 容器配置与数据卷持久化目录。
-2. **编写 PostgreSQL 初始化脚本**：`docker/postgres/init.sql`，预先开启 `vector` 扩展并建立基础库。
-3. **编写服务验证与启动脚本**：一键命令启动与健康检查。
-4. **引入 Spring Boot 基础设施客户端依赖**：在 `build.gradle.kts` 中预备对应的客户端 SDK。
+1. **编写 `docker-compose.yml`**：定义 PostgreSQL(pgvector)、Qdrant、Elasticsearch、Elasticvue、MinIO 容器配置与数据卷持久化目录。（已完成 ✅）
+2. **编写 PostgreSQL 初始化脚本**：`docker/postgres/init.sql`，预先开启 `vector` 扩展并建立基础库。（已完成 ✅）
+3. **编写服务验证与启动脚本**：一键命令启动与健康检查。（已完成 ✅）
+4. **引入 Spring Boot 基础设施客户端依赖**：在 `build.gradle.kts` 中预备对应的客户端 SDK。（下一步 🚀）
 
 ---
 

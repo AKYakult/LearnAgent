@@ -15,7 +15,6 @@ import java.util.stream.Collectors;
 
 /**
  * 手写 ReAct (Reasoning + Acting) 核心执行引擎
- * 
  * 核心原理：
  * 1. Prompt 约束：告知大模型工具说明以及 Thought / Action / Action Input / Observation 格式
  * 2. 轮询推理：调用大模型获取推理决策
@@ -84,6 +83,8 @@ public class ReActEngine {
                 .collect(Collectors.joining("\n"));
         String toolNames = String.join(", ", toolMap.keySet());
 
+        log.debug("目前的工具:{}", toolDescriptions);
+
         String systemPrompt = String.format(REACT_SYSTEM_PROMPT_TEMPLATE, toolDescriptions, toolNames);
 
         // 2. 初始化思考轨迹记录器 (Scratchpad)
@@ -94,10 +95,11 @@ public class ReActEngine {
         // 3. 开启 ReAct 驱动循环
         for (int step = 1; step <= maxSteps; step++) {
             log.info("\n----------------- [第 {} 轮思考与决策] -----------------", step);
+            log.info("\n当前草稿纸:\n{}\n", scratchpad);
 
             // 请求大模型生成下一步
             String llmOutput = chatModel.chat(scratchpad.toString());
-            log.info("🧠 大模型思考输出:\n{}", llmOutput.trim());
+            log.info("\n🧠 大模型思考输出:\n{}\n", llmOutput.trim());
 
             // 将大模型本轮输出追加到上下文中
             scratchpad.append(llmOutput).append("\n");

@@ -5,6 +5,10 @@ spring:
   application:
     name: MyAgent
 
+logging:
+  level:
+    jin.agent.react: DEBUG
+
 # 大模型连接配置（支持从根目录 .env 文件或系统环境变量中自动注入）
 llm:
   sensenova:

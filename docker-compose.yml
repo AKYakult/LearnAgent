@@ -1,0 +1,95 @@
+services:
+  # ----------------------------------------------------------------------------
+  # 1. PostgreSQL + pgvector (关系型业务数据 + 会话历史 + 向量存储)
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg18
+    container_name: myagent-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-myagent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-myagent_password}
+      POSTGRES_DB: ${POSTGRES_DB:-myagent_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-myagent} -d ${POSTGRES_DB:-myagent_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # 2. Qdrant (高性能独立向量数据库，内置可视化 Web 控制台: http://localhost:6333/dashboard)
+  # ----------------------------------------------------------------------------
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: myagent-qdrant
+    ports:
+      - "6333:6333" # HTTP REST API & Web Dashboard
+      - "6334:6334" # gRPC API
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+  # ----------------------------------------------------------------------------
+  # 3. Elasticsearch (全文倒排检索引擎，用于关键词匹配与混合检索 RAG)
+  # ----------------------------------------------------------------------------
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: myagent-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      # 开启跨域访问，以便 Elasticvue Web 控制台正常连通 (使用正则 /.*/ 避免 SnakeYAML 别名语法错误)
+      - http.cors.enabled=true
+      - "http.cors.allow-origin=/.*/"
+      - http.cors.allow-headers=X-Requested-With,Content-Type,Content-Length,Authorization
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    restart: unless-stopped
+
+  # ----------------------------------------------------------------------------
+  # 4. Elasticvue (Elasticsearch 轻量级 Web 管理界面: http://localhost:8088)
+  # ----------------------------------------------------------------------------
+  elasticvue:
+    image: cars10/elasticvue:latest
+    container_name: myagent-elasticvue
+    ports:
+      # 映射到宿主机 8088 端口，避免与 Spring Boot 默认的 8080 端口冲突
+      - "8088:8080"
+    restart: unless-stopped
+    depends_on:
+      - elasticsearch
+
+  # ----------------------------------------------------------------------------
+  # 5. MinIO (S3 兼容的高性能对象存储，存知识库原始 PDF/Word，控制台: http://localhost:9001)
+  # ----------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    container_name: myagent-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin_password}
+    ports:
+      - "9100:9000" # S3 API 端口 (宿主机映射 9100，规避 9000 端口冲突)
+      - "9101:9001" # Web 控制台管理页面 (宿主机映射 9101，规避 9001 端口冲突)
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  qdrant_data:
+    driver: local
+  es_data:
+    driver: local
+  minio_data:
+    driver: local
