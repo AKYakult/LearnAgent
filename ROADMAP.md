@@ -150,6 +150,17 @@ flowchart TD
   * 实现双路召回（向量语义 + ES 倒排）与 RRF（倒数排名融合）排序。
   * 封装为 `@Tool` 挂载到 Agent，让智能体具备查阅企业知识库回答问题的能力。
 
+### 4.3 里程碑 4.1 落地成果与复盘总结
+1. **本地向量基石**：成功整合本地 **Ollama** 运行的旗舰多语言嵌入模型 `bge-m3`（1024 维），带 Apple Silicon Metal GPU 硬件加速，实现零 API 成本、毫秒级向量推理。
+2. **Qdrant 自动化配置与版本对齐**：
+   * 编写 `QdrantConfig` 实现自动化探活建表（无需手动建 Collection，自动以 1024 维 Cosine 度量初始化）。
+   * 显式升级 `io.qdrant:client:1.19.0`，精准对齐 Docker 服务端版本，彻底消除版本兼容性警告。
+3. **内容指纹幂等去重**：深入剖析向量数据库以 Point ID 为主键的机制，基于文本内容哈希生成确定性 UUID，避免重复测试导致数据无限累加。
+4. **从纯检索 (R) 到完整问答 (R+A+G)**：
+   * 实现了不仅能查出原始资料片段，更通过商汤 SenseNova `ChatModel` 阅读参考资料，输出自然流畅的最终答复。
+   * 控制器已暴露完整端点：`/knowledge/ingest`（录入）、`/knowledge/search`（向量检索）、`/knowledge/ask`（完整 RAG 自然语言问答）。
+   * [`test.http`](file:///Users/jin/WorkSpaceIDEA/Spring/MyAgent/test.http) 补充了阶段四的全套一键测试用例。
+
 ---
 
 ## 阶段五：进阶实战与生产能力（待开始 ⏳）
