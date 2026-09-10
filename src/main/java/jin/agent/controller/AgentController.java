@@ -1,5 +1,6 @@
 package jin.agent.controller;
 
+import jin.agent.declarative.Assistant;
 import jin.agent.react.ReActEngine;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,9 +17,11 @@ import java.util.Map;
 public class AgentController {
 
     private final ReActEngine reActEngine;
+    private final Assistant assistant;
 
-    public AgentController(ReActEngine reActEngine) {
+    public AgentController(ReActEngine reActEngine, Assistant assistant) {
         this.reActEngine = reActEngine;
+        this.assistant = assistant;
     }
 
     /**
@@ -34,6 +37,24 @@ public class AgentController {
         String answer = reActEngine.run(query, maxSteps);
         long cost = System.currentTimeMillis() - startTime;
 
+        return Map.of(
+                "query", query,
+                "answer", answer,
+                "costMs", cost,
+                "status", "success"
+        );
+    }
+
+    /**
+     * 阶段三：声明式 @AiService 智能体端点
+     */
+    @GetMapping("/declarative")
+    public Map<String, Object> askDeclarative(
+            @RequestParam(defaultValue = "请计算半径为 4.5 的圆的面积是多少？")
+            String query) {
+        long startTime = System.currentTimeMillis();
+        String answer = assistant.chat(query);
+        long cost = System.currentTimeMillis() - startTime;
         return Map.of(
                 "query", query,
                 "answer", answer,

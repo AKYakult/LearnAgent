@@ -15,20 +15,20 @@ flowchart TD
         P1_3 --> P1_4[输出 Thought-Action-Observation 运行日志]
     end
 
-    subgraph Phase2["阶段 2：现代基础设施 Docker 化（当前进行 🚀）"]
+    subgraph Phase2["阶段 2：现代基础设施 Docker 化（已完成 ✅）"]
         P2_1[Postgres + pgvector]
         P2_2[Qdrant 向量数据库]
         P2_3[Elasticsearch + Elasticvue]
         P2_4[MinIO S3 对象存储]
     end
 
-    subgraph Phase3["阶段 3：LangChain4j 声明式工程化"]
+    subgraph Phase3["阶段 3：LangChain4j 声明式工程化（已完成 ✅）"]
         P3_1[注解驱动 @AiService & @Tool]
         P3_2[动态代理机制解析]
         P3_3[会话上下文 ChatMemory]
     end
 
-    subgraph Phase4["阶段 4：外挂大脑（RAG 与混合检索）"]
+    subgraph Phase4["阶段 4：外挂大脑（RAG 与混合检索）（下一阶段 🚀）"]
         P4_1[MinIO 原始文档存储] --> P4_2[分块与 Embedding 向量化]
         P4_2 --> P4_3[Qdrant / PgVector 语义向量检索]
         P4_1 --> P4_4[Elasticsearch 全文精准检索]
@@ -89,7 +89,7 @@ flowchart TD
 
 ---
 
-## 阶段三：LangChain4j 声明式工程化演进（状态：当前进行 🚀）
+## 阶段三：LangChain4j 声明式工程化演进（状态：已完成 ✅）
 
 ### 3.1 核心目标
 * 对比阶段一中手写的 `while` 循环与单出入参限制，体验 LangChain4j 的声明式封装。
@@ -112,10 +112,19 @@ flowchart TD
    * 编写 Controller 对外暴露端点，并编写多轮对话测试用例验证效果。
 
 ### 3.3 阶段三动手任务清单
-- [ ] **任务 3.1**：编写声明式工具类（如 `CalculatorService` 或改造现有工具），掌握 `@Tool` 与 `@P` 注解用法。
-- [ ] **任务 3.2**：定义智能体接口 `Assistant`，编写 `@SystemMessage` 系统提示词。
-- [ ] **任务 3.3**：在 Spring 配置类中通过 `AiServices.builder(...)` 装配 Bean，注入 `ChatMemory`。
-- [ ] **任务 3.4**：编写 Web 控制器与多轮对话测试，观察大模型 Function Calling 底层日志与上下文保持能力。
+- [x] **任务 3.1**：编写声明式工具类（如 `MathTools`），掌握 `@Tool` 与 `@P` 注解用法。
+- [x] **任务 3.2**：定义智能体接口 `Assistant`，编写 `@SystemMessage` 系统提示词。
+- [x] **任务 3.3**：在 Spring 配置类中通过 `AiServices.builder(...)` 装配 Bean，注入 `ChatMemory`。
+- [x] **任务 3.4**：编写 Web 控制器与多轮对话测试，观察大模型 Function Calling 底层日志与上下文保持能力。
+
+### 3.4 落地成果与复盘
+1. **声明式强类型工具**：编写 `MathTools`，使用 `@Tool` 与 `@P` 支持精准的多入参类型自动绑定与调用，无需手动反序列化入参。
+2. **声明式外观与系统人设**：定义 `Assistant` 接口，配合 `@SystemMessage` 约束优先使用工具计算。
+3. **会话记忆与工厂装配**：`AssistantConfig` 接入 `MessageWindowChatMemory(10)`，并以 `AiServices.builder(Assistant.class)` 动态代理生成 Bean。
+4. **端点暴露与多轮测试**：
+   * `AgentController` 暴露 `/api/agent/declarative` 端点。
+   * `DeclarativeAgentLiveTest` 自动化执行 3 轮交互（建立上下文 -> 触发工具调用 -> 跨轮跨工具回忆记忆），测试全部通过。
+   * `test.http` 补充声明式接口的快捷请求样例。
 
 ---
 

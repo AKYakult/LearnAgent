@@ -1,1 +1,10 @@
 http://localhost:8080/api/agent/react?query=查询北京现在的天气气温
+
+###
+http://localhost:8080/api/agent/declarative?query=hi,我是jin
+
+###
+http://localhost:8080/api/agent/declarative?query=请计算半径为5的圆的面积是多少？
+
+###
+http://localhost:8080/api/agent/declarative?query=还记得我的名字吗?
