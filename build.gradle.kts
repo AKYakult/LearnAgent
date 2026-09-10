@@ -30,6 +30,8 @@ dependencies {
     implementation("dev.langchain4j:langchain4j")
     implementation("dev.langchain4j:langchain4j-open-ai")
     implementation("dev.langchain4j:langchain4j-qdrant")
+    // Qdrant 官方客户端（显式升级至 1.19.0 对齐服务端 1.19.x，消除版本差异警告）
+    implementation("io.qdrant:client:1.19.0")
     implementation("dev.langchain4j:langchain4j-ollama")
     implementation("dev.langchain4j:langchain4j-embeddings-bge-small-zh-v15")
 

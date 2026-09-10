@@ -38,3 +38,6 @@ GET http://localhost:8080/api/agent/knowledge/search?query=小明平时养了什
 
 ### 4.5 语义相似度检索测试 2（检索 Java 技术栈：验证不同技术主题的精准召回）
 GET http://localhost:8080/api/agent/knowledge/search?query=Java 后端开发中最常用的微服务框架是哪一个？&maxResults=2
+
+### 4.6 语义相似度检索测试 3（检索 Nova）
+GET http://localhost:8080/api/agent/knowledge/search?query=Nova大模型是什么?特点是什么? &maxResults=2
