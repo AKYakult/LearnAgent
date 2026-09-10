@@ -78,8 +78,8 @@ public class AgentController {
     }
 
     /**
-     * 阶段四：知识切片录入端点
-     * 将输入文本通过 Ollama bge-m3 转化为 1024 维向量，写入 Qdrant 向量库
+     * 阶段四：知识切片录入端点（基于内容指纹幂等去重）
+     * 根据文本内容计算确定性 UUID，无论重复点击录入多少次，相同内容在向量库中永远只保留一条
      */
     @GetMapping("/knowledge/ingest")
     public Map<String, Object> ingestKnowledge(
@@ -88,7 +88,11 @@ public class AgentController {
         long startTime = System.currentTimeMillis();
         TextSegment segment = TextSegment.from(text);
         Embedding embedding = embeddingModel.embed(segment).content();
-        String id = embeddingStore.add(embedding, segment);
+
+        // 基于文本内容计算确定性 UUID（内容指纹）
+        String id = java.util.UUID.nameUUIDFromBytes(text.getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+        embeddingStore.addAll(List.of(id), List.of(embedding), List.of(segment));
+
         long cost = System.currentTimeMillis() - startTime;
         return Map.of(
                 "status", "success",

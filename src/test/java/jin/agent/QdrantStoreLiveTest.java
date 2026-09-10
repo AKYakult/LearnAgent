@@ -53,9 +53,11 @@ public class QdrantStoreLiveTest {
             TextSegment segment = TextSegment.from(text);
             Embedding embedding = embeddingModel.embed(segment).content();
             assertNotNull(embedding);
-            // 写入 Qdrant 向量存储，并关联原始文本切片 Payload
-            embeddingStore.add(embedding, segment);
-            System.out.println("成功存入向量切片: " + text.substring(0, Math.min(20, text.length())) + "...");
+
+            // 基于内容哈希生成确定性 UUID，确保多次执行不会生成重复点
+            String deterministicId = java.util.UUID.nameUUIDFromBytes(text.getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+            embeddingStore.addAll(List.of(deterministicId), List.of(embedding), List.of(segment));
+            System.out.println("成功以确定性 ID [" + deterministicId + "] 存入向量切片: " + text.substring(0, Math.min(20, text.length())) + "...");
         }
 
         System.out.println("\n========== [步骤 2：测试第 1 个语义检索（宠物问题）] ==========");
