@@ -140,9 +140,11 @@ flowchart TD
   * 接入本地 Ollama 驱动的 `bge-m3` 多语言嵌入模型（1024 维高维向量）。
   * 编写 `QdrantConfig` 自动探活与建表（REST 探活创建 `myagent_knowledge` 集合，Cosine 度量）。
   * 编写 `QdrantStoreLiveTest`，完成向量切片写入与跨领域语义检索验证（相似度得分 > 0.8）。
-- [ ] **里程碑 4.2：文档解析、切分与 MinIO 摄取流水线（待开始 ⏳）**
-  * 使用 LangChain4j `DocumentSplitter` 实现文本按段落切分与重叠块机制。
-  * 结合 MinIO 对象存储，实现本地知识库文档上传、下载与批量切片入库。
+- [ ] **里程碑 4.2：工业级文档摄取流水线（MinIO + 智能切片 + 三层幂等去重架构）（待开始 ⏳）**
+  * **第一层（文档级去重）**：上传 PDF / Markdown 文档至 **MinIO** 对象存储，先计算文件级 SHA-256 校验和。已入库且内容未变更的文件直接跳过，避免昂贵的重复解析与向量计算。
+  * **第二层（稳定切片定位与覆盖）**：采用 LangChain4j `DocumentSplitter` 切分文本（设置合理的 Chunk Size 与 Overlap 重叠区），切片 ID 绑定 `documentId:chunkIndex` 生成合法确定性 UUID。文档重导时，精准覆盖同名序号旧切片。
+  * **第三层（切片指纹与孤儿切片清理）**：在 Qdrant Payload 中记录 `document_id`、`chunk_index` 和 `content_hash`。当文档新版本切片总数减少时，能够通过 Qdrant 过滤器精准清理过时陈旧的切片，彻底杜绝知识库历史版本污染。
+  * **流水线装配**：编写完整的文档上传与流式摄取 Service，打通从“MinIO 文件落地 -> 文本解析 -> 批量向量化 -> Qdrant 幂等入库”的全链路。
 - [ ] **里程碑 4.3：Elasticsearch 全文检索与混合检索融合（待开始 ⏳）**
   * 文本切片同步入库 Elasticsearch 建立分词倒排索引。
   * 实现双路召回（向量语义 + ES 倒排）与 RRF（倒数排名融合）排序。
