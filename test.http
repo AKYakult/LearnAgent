@@ -41,3 +41,17 @@ GET http://localhost:8080/api/agent/knowledge/search?query=Java 后端开发中�
 
 ### 4.6 语义相似度检索测试 3（检索 Nova）
 GET http://localhost:8080/api/agent/knowledge/search?query=Nova大模型是什么?特点是什么? &maxResults=2
+
+
+### ============================================================================
+### 阶段四：完整 RAG（检索增强生成 = Qdrant 查资料 + 商汤大模型自然语言回答）
+### ============================================================================
+
+### 4.7 完整 RAG 问答测试 1（问宠物：观察商汤大模型基于检索资料生成的流利自然语言回答）
+GET http://localhost:8080/api/agent/knowledge/ask?query=小明平时养了什么宠物？它喜欢吃什么？
+
+### 4.8 完整 RAG 问答测试 2（问 Nova 特性：观察大模型基于知识库给出的结构化解答）
+GET http://localhost:8080/api/agent/knowledge/ask?query=请告诉我商汤日日新平台的优势和特点有哪些？
+
+### 4.9 完整 RAG 问答防幻觉测试 3（问库里没有的知识：验证模型是否如实告知未知，切勿胡编乱造）
+GET http://localhost:8080/api/agent/knowledge/ask?query=量子力学的薛定谔波动方程核心推导是什么？

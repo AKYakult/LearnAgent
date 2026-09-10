@@ -2,6 +2,7 @@ package jin.agent.controller;
 
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
+import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingSearchResult;
@@ -15,9 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
- * 体验接口：提供 HTTP 入口测试 ReAct Agent、声明式 Agent 以及 Qdrant 向量检索
+ * 体验接口：提供 HTTP 入口测试 ReAct Agent、声明式 Agent 以及 Qdrant 向量检索与 RAG 问答
  */
 @RestController
 @RequestMapping("/api/agent")
@@ -25,15 +27,18 @@ public class AgentController {
 
     private final ReActEngine reActEngine;
     private final Assistant assistant;
+    private final ChatModel chatModel;
     private final EmbeddingModel embeddingModel;
     private final EmbeddingStore<TextSegment> embeddingStore;
 
     public AgentController(ReActEngine reActEngine,
                            Assistant assistant,
+                           ChatModel chatModel,
                            EmbeddingModel embeddingModel,
                            EmbeddingStore<TextSegment> embeddingStore) {
         this.reActEngine = reActEngine;
         this.assistant = assistant;
+        this.chatModel = chatModel;
         this.embeddingModel = embeddingModel;
         this.embeddingStore = embeddingStore;
     }
@@ -134,6 +139,58 @@ public class AgentController {
                 "query", query,
                 "count", matches.size(),
                 "matches", matches,
+                "costMs", cost,
+                "status", "success"
+        );
+    }
+
+    /**
+     * 阶段四：完整 RAG（检索增强生成）问答端点
+     * 完整闭环链路：
+     * 1. Retrieval (检索)：Ollama 将 query 向量化并在 Qdrant 搜出相关切片；
+     * 2. Augmentation (增强)：将切片作为 Context 注入 Prompt；
+     * 3. Generation (生成)：商汤大模型结合资料阅读理解，输出自然语言回答。
+     */
+    @GetMapping("/knowledge/ask")
+    public Map<String, Object> askRag(
+            @RequestParam(defaultValue = "小明平时养了什么宠物？它喜欢吃什么？")
+            String query) {
+        long startTime = System.currentTimeMillis();
+
+        // 1. 检索阶段 (R)
+        Embedding queryEmbedding = embeddingModel.embed(query).content();
+        EmbeddingSearchRequest request = EmbeddingSearchRequest.builder()
+                .queryEmbedding(queryEmbedding)
+                .maxResults(2)
+                .minScore(0.5)
+                .build();
+        EmbeddingSearchResult<TextSegment> result = embeddingStore.search(request);
+
+        // 拼接检索到的外部参考资料
+        String context = result.matches().stream()
+                .map(m -> "- " + m.embedded().text())
+                .collect(Collectors.joining("\n"));
+
+        // 2. 增强阶段 (A) 与 3. 生成阶段 (G)
+        String prompt = """
+                你是一个严谨客观的知识库智能助理。请严格根据以下提供的【参考资料】用通俗、流畅、自然的中文回答用户的【问题】。
+                如果参考资料中没有提及相关答案，请如实告知“知识库中未找到相关答案”，切勿凭空捏造。
+
+                【参考资料】：
+                %s
+
+                【用户问题】：
+                %s
+                """.formatted(context.isBlank() ? "无相关资料" : context, query);
+
+        // 调用商汤 SenseNova 大模型生成人类语言回答
+        String answer = chatModel.chat(prompt);
+        long cost = System.currentTimeMillis() - startTime;
+
+        return Map.of(
+                "query", query,
+                "answer", answer,
+                "referencedDocs", result.matches().stream().map(m -> m.embedded().text()).toList(),
                 "costMs", cost,
                 "status", "success"
         );
