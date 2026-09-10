@@ -66,7 +66,7 @@ flowchart TD
 
 ---
 
-## 阶段二：现代基础设施容器化（状态：当前进行 🚀）
+## 阶段二：现代基础设施容器化（状态：已完成 ✅）
 
 ### 2.1 核心目标
 * 采用 `docker-compose.yml` 统一编排与拉起现代 AI 智能体开发必备的基础设施全家桶。
@@ -82,29 +82,40 @@ flowchart TD
 | **Elasticvue** | `cars10/elasticvue:latest` | `8088:8080` | Elasticsearch 轻量级可视化 Web 管理控制台 |
 | **MinIO** | `minio/minio:latest` | `9100:9000`, `9101:9001` | S3 兼容的高性能对象存储；Web 控制台在 `9101`（避开本地已有项目的 9000/9001） |
 
-### 2.3 计划任务清单
+### 2.3 落地成果
 1. **编写 `docker-compose.yml`**：定义 PostgreSQL(pgvector)、Qdrant、Elasticsearch、Elasticvue、MinIO 容器配置与数据卷持久化目录。（已完成 ✅）
 2. **编写 PostgreSQL 初始化脚本**：`docker/postgres/init.sql`，预先开启 `vector` 扩展并建立基础库。（已完成 ✅）
-3. **编写服务验证与启动脚本**：一键命令启动与健康检查。（已完成 ✅）
-4. **引入 Spring Boot 基础设施客户端依赖**：在 `build.gradle.kts` 中预备对应的客户端 SDK。（下一步 🚀）
+3. **编写服务验证与启动脚本**：`scripts/check-infra.ps1`，一键命令启动与健康检查，5 大中间件全绿运行。（已完成 ✅）
 
 ---
 
-## 阶段三：LangChain4j 声明式工程化演进（待开始 ⏳）
+## 阶段三：LangChain4j 声明式工程化演进（状态：当前进行 🚀）
 
 ### 3.1 核心目标
-* 对比阶段一中手写的 `while` 循环，体验 LangChain4j 的声明式封装。
-* 理解框架背后的工作原理：**框架不是魔法，只是用动态代理帮我们自动做了阶段一我们手写的事**。
+* 对比阶段一中手写的 `while` 循环与单出入参限制，体验 LangChain4j 的声明式封装。
+* 理解框架背后的工作原理：**框架不是魔法，只是用 JDK 动态代理 + OpenAI Function Calling 规范帮我们自动完成了阶段一我们手写的事**。
 
-### 3.2 演进内容
-1. **注解驱动**：
-   * 将自定义工具方法加上 `@Tool` 注解。
-   * 使用 `@AiService` 接口声明智能体外观。
-2. **会话记忆接入**：
-   * 引入 `ChatMemory`（如基于滑动窗口的 `MessageWindowChatMemory`）。
-   * 实现跨轮次多轮对话的状态保持。
-3. **架构分层**：
-   * Controller（对外 HTTP 接口） -> Service（Agent 协调层） -> Tools（领域能力层）。
+### 3.2 演进内容：从手写接口到声明式 @Tool
+1. **工具定义的范式跃迁 (Tool Evolution)**：
+   * **阶段一痛点**：入参只能是单个 `String`（需要自己解析字符串），大模型容易传错格式。
+   * **阶段三升级**：
+     * 普通 Java 方法直接标注 `@Tool("方法用途描述")`。
+     * 参数使用 `@P("参数说明与格式约束")` 进行精确类型定义（支持 `int`、`double`、`String`、乃至复杂 JavaBean）。
+     * LangChain4j 自动通过反射提取方法签名，生成符合 OpenAI 标准的 JSON Schema 传递给模型。
+2. **声明式智能体外观 (@AiService)**：
+   * 仅需定义一个 Java 接口（如 `Assistant` 或 `DeclarativeAgent`），声明对话方法签名。
+   * 支持 `@SystemMessage` 静态/动态模板注入人设与规则约束。
+3. **智能体会话记忆 (ChatMemory)**：
+   * 接入 `MessageWindowChatMemory`（滑动窗口记忆），实现跨轮次多轮连续对话上下文保持。
+4. **架构装配与验证**：
+   * 采用 `AiServices.builder()` 工厂组装 `ChatModel`、`Tools` 与 `ChatMemory`。
+   * 编写 Controller 对外暴露端点，并编写多轮对话测试用例验证效果。
+
+### 3.3 阶段三动手任务清单
+- [ ] **任务 3.1**：编写声明式工具类（如 `CalculatorService` 或改造现有工具），掌握 `@Tool` 与 `@P` 注解用法。
+- [ ] **任务 3.2**：定义智能体接口 `Assistant`，编写 `@SystemMessage` 系统提示词。
+- [ ] **任务 3.3**：在 Spring 配置类中通过 `AiServices.builder(...)` 装配 Bean，注入 `ChatMemory`。
+- [ ] **任务 3.4**：编写 Web 控制器与多轮对话测试，观察大模型 Function Calling 底层日志与上下文保持能力。
 
 ---
 
