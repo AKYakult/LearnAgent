@@ -1,10 +1,40 @@
-http://localhost:8080/api/agent/react?query=查询北京现在的天气气温
+### ============================================================================
+### 阶段一：手写 ReAct 智能体（Thought -> Action -> Observation -> Final Answer）
+### ============================================================================
 
-###
-http://localhost:8080/api/agent/declarative?query=hi,我是jin
+### 1.1 手写 ReAct 复合任务（先查天气，再做加乘计算）
+GET http://localhost:8080/api/agent/react?query=请查询北京现在的天气气温，并计算如果气温乘以2.5再加上10等于多少？&maxSteps=5
 
-###
-http://localhost:8080/api/agent/declarative?query=请计算半径为5的圆的面积是多少？
 
-###
-http://localhost:8080/api/agent/declarative?query=还记得我的名字吗?
+### ============================================================================
+### 阶段三：声明式 @AiService 智能体（动态代理 + 自动 Function Calling + 短期记忆）
+### ============================================================================
+
+### 3.1 第 1 轮对话：建立上下文记忆（告知身份与学习目标）
+GET http://localhost:8080/api/agent/declarative?query=你好，我叫李华，我今年准备深入学习 AI 智能体开发。
+
+### 3.2 第 2 轮对话：触发声明式工具调用（MathTools.calculateCircleArea）
+GET http://localhost:8080/api/agent/declarative?query=请帮我计算一个半径为 5.0 的圆的面积是多少？
+
+### 3.3 第 3 轮对话：验证跨轮次短期记忆（回溯第 1 轮的姓名）
+GET http://localhost:8080/api/agent/declarative?query=你还记得我叫什么名字吗？
+
+
+### ============================================================================
+### 阶段四：RAG 向量基石（Ollama bge-m3 向量化 + Qdrant 向量数据库存储与检索）
+### ============================================================================
+
+### 4.1 写入知识切片 A（小明的宠物知识）
+GET http://localhost:8080/api/agent/knowledge/ingest?text=小明养了一只名叫咪咪的橘猫，它的性格非常温顺，每天最喜欢吃小鱼干和晒太阳。
+
+### 4.2 写入知识切片 B（Spring Boot 框架知识）
+GET http://localhost:8080/api/agent/knowledge/ingest?text=Spring Boot 是 Java 生态中最流行的微服务脚手架，具备自动配置和快速起步的强大特性。
+
+### 4.3 写入知识切片 C（商汤日日新模型平台）
+GET http://localhost:8080/api/agent/knowledge/ingest?text=商汤日日新 SenseNova 是业界领先的大语言模型平台，提供高并发的文本生成与视觉多模态能力。
+
+### 4.4 语义相似度检索测试 1（检索宠物：验证即使关键词不完全一样，依靠余弦距离也能精准命中）
+GET http://localhost:8080/api/agent/knowledge/search?query=小明平时养了什么宠物？它喜欢吃什么？&maxResults=2
+
+### 4.5 语义相似度检索测试 2（检索 Java 技术栈：验证不同技术主题的精准召回）
+GET http://localhost:8080/api/agent/knowledge/search?query=Java 后端开发中最常用的微服务框架是哪一个？&maxResults=2
