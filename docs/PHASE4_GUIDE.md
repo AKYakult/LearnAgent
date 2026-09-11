@@ -32,11 +32,10 @@
 * **现象**：多次运行测试或点击录入相同文本时，Qdrant 控制台中同一句话出现了多条记录。
 * **根因**：Qdrant 的唯一键是 Point ID，LangChain4j 默认通过 `UUID.randomUUID()` 随机生成 ID。ID 不同时，Qdrant 视为新数据。
 * **解决方案**：
-  * **单句去重（里程碑 4.1 方案）**：使用 `UUID.nameUUIDFromBytes(text.getBytes())` 内容指纹生成确定性 UUID，相同文本再次插入触发 Upsert 覆盖。
-  * **工业级文档去重（里程碑 4.2 规划）**：
-    1. **第一层（文件级 SHA-256）**：全文件哈希校验，未变动文档直接跳过，零向量计算开销；
-    2. **第二层（槽位级确定性 ID）**：切片绑定 `UUID(docId:chunkIndex)`，重新导入时精准覆盖同槽位切片；
-    3. **第三层（孤儿切片清理）**：新版本切片总数减少时，根据 `document_id` 自动清理废弃切片，防止旧知识污染。
+  * **工业级文档版本管理与去重演进（里程碑 4.2 规划，详见 [`DOCUMENT_ID_DESIGN.md`](file:///D:/vibe/LearnAgent/docs/DOCUMENT_ID_DESIGN.md)）**：
+    1. **文档身份解耦**：采用方案 B，由调用方显式传入业务 Key `documentId`（如 `onboarding-guide`），与文件名解耦，解决重命名导致的版本断裂问题。
+    2. **第一层（MinIO 元数据哈希防重）**：Object Key 统一为 `documents/{documentId}`，元数据记录 `content-hash`。上传时通过 `statObject` 比对哈希，未变动直接短路跳过，实现零向量计算开销。
+    3. **第二层（整文档原子删除重建）**：若内容发生变动，直接执行 `embeddingStore.removeAll(metadataKey("document_id").isEqualTo(documentId))` 清空该文档旧切片，再重新分块批量写入。无需维护复杂的切片槽位与孤儿切片序号，彻底杜绝历史版本污染。
 
 ### 2. Qdrant Client 与 Server 版本兼容性警告
 * **原因**：服务端镜像 `qdrant/qdrant:latest` 为 1.19.1，而框架默认传递的 `io.qdrant:client` 为 1.17.0，次版本跨度 $\ge 2$ 触发警告。

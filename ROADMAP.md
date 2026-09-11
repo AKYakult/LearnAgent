@@ -140,11 +140,12 @@ flowchart TD
   * 接入本地 Ollama 驱动的 `bge-m3` 多语言嵌入模型（1024 维高维向量）。
   * 编写 `QdrantConfig` 自动探活与建表（REST 探活创建 `myagent_knowledge` 集合，Cosine 度量）。
   * 编写 `QdrantStoreLiveTest`，完成向量切片写入与跨领域语义检索验证（相似度得分 > 0.8）。
-- [ ] **里程碑 4.2：工业级文档摄取流水线（MinIO + 智能切片 + 三层幂等去重架构）（待开始 ⏳）**
-  * **第一层（文档级去重）**：上传 PDF / Markdown 文档至 **MinIO** 对象存储，先计算文件级 SHA-256 校验和。已入库且内容未变更的文件直接跳过，避免昂贵的重复解析与向量计算。
-  * **第二层（稳定切片定位与覆盖）**：采用 LangChain4j `DocumentSplitter` 切分文本（设置合理的 Chunk Size 与 Overlap 重叠区），切片 ID 绑定 `documentId:chunkIndex` 生成合法确定性 UUID。文档重导时，精准覆盖同名序号旧切片。
-  * **第三层（切片指纹与孤儿切片清理）**：在 Qdrant Payload 中记录 `document_id`、`chunk_index` 和 `content_hash`。当文档新版本切片总数减少时，能够通过 Qdrant 过滤器精准清理过时陈旧的切片，彻底杜绝知识库历史版本污染。
-  * **流水线装配**：编写完整的文档上传与流式摄取 Service，打通从“MinIO 文件落地 -> 文本解析 -> 批量向量化 -> Qdrant 幂等入库”的全链路。
+- [ ] **里程碑 4.2：工业级文档摄取流水线（MinIO + 智能切片 + documentId 身份与删除重建）（待开始 ⏳）**
+  * **身份标识解耦**：落地 [`docs/DOCUMENT_ID_DESIGN.md`](file:///D:/vibe/LearnAgent/docs/DOCUMENT_ID_DESIGN.md) 方案 B，调用方显式声明稳定不变的业务 Key `documentId`（如 `onboarding-guide`），与文件名彻底解耦，避免文件重命名导致的版本追踪断裂。
+  * **第一层（文件级哈希校验防重）**：MinIO Object Key 统一规范为 `documents/{documentId}`，并在 User Metadata 中持久化 `original-filename` 与 `content-hash`（文件 SHA-256）。上传时通过 `statObject` 对比哈希，内容未变直接短路跳过，零额外向量计算开销。
+  * **第二层（原子化整文档删除重建）**：当哈希变更或首次上传时，统一通过 `embeddingStore.removeAll(metadataKey("document_id").isEqualTo(documentId))` 将该文档历史切片整体清空，再整批写入新切片。无论新版本切片变多、变少还是重排，均能彻底消除“孤儿切片”与知识库历史版本污染。
+  * **智能切片与批量向量化**：采用 `DocumentSplitters.recursive(400, 50)` 进行递归切片，每个切片注入 `document_id`、`chunk_index`、`content_hash`、`original_filename` 等元数据，批量计算向量并写入 Qdrant。
+  * **业务下沉与接口暴露**：将核心逻辑从 Controller 剥离并下沉至独立的 `KnowledgeService`，提供 `POST /knowledge/documents`（文档上传/更新）与 `GET /knowledge/documents`（文档 ID 列表查询调试），并编写 `KnowledgeIngestionLiveTest` 进行全场景自动化回归。
 - [ ] **里程碑 4.3：Elasticsearch 全文检索与混合检索融合（待开始 ⏳）**
   * 文本切片同步入库 Elasticsearch 建立分词倒排索引。
   * 实现双路召回（向量语义 + ES 倒排）与 RRF（倒数排名融合）排序。
