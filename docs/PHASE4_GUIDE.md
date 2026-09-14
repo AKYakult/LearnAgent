@@ -45,11 +45,25 @@
 
 ## 三、 已开放的 HTTP 体验端点（对照 test.http）
 
-1. **知识切片幂等录入**：
-   * `GET http://localhost:8080/api/agent/knowledge/ingest?text=...`
-2. **纯向量相似度检索 (R)**：
-   * `GET http://localhost:8080/api/agent/knowledge/search?query=...&maxResults=2`
-3. **完整 RAG 自然语言问答 (R + A + G)**：
-   * `GET http://localhost:8080/api/agent/knowledge/ask?query=...`
-4. **Qdrant 可视化仪表盘**：
-   * `http://localhost:6333/dashboard`
+### 1. 工业级文档摄取流水线（里程碑 4.2 核心成果）
+* **上传/更新真实文档**：
+  * `POST http://localhost:8080/knowledge/documents`
+  * Form 字段：`file`（文件二进制流）、`documentId`（业务标识，如 `onboarding-guide`）
+  * 内置两层去重：第一层哈希相同短路跳过；第二层哈希不同原子删除重建。
+* **查看已入库文档清单**：
+  * `GET http://localhost:8080/knowledge/documents`
+* **跨文档语义向量检索**：
+  * `GET http://localhost:8080/knowledge/search?query=...&maxResults=3`
+* **基于私域文档的完整 RAG 问答**：
+  * `GET http://localhost:8080/knowledge/ask?query=...`
+
+### 2. 存量学习端点与可视化控制台
+* **单句知识切片快速录入**：
+  * `GET http://localhost:8080/api/agent/knowledge/ingest?text=...`
+* **Qdrant 向量数据库可视化仪表盘**：
+  * `http://localhost:6333/dashboard`
+* **MinIO 对象存储 Web 控制台**：
+  * `http://localhost:9101`（账号: `minioadmin`，密码: `minioadmin_password`）
+* **Elasticvue Elasticsearch 控制台**：
+  * `http://localhost:8088`
+

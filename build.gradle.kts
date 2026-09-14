@@ -35,6 +35,9 @@ dependencies {
     implementation("dev.langchain4j:langchain4j-ollama")
     implementation("dev.langchain4j:langchain4j-embeddings-bge-small-zh-v15")
 
+    // MinIO Java SDK (S3 对象存储)
+    implementation("io.minio:minio:8.5.17")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

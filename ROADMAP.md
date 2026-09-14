@@ -140,19 +140,19 @@ flowchart TD
   * 接入本地 Ollama 驱动的 `bge-m3` 多语言嵌入模型（1024 维高维向量）。
   * 编写 `QdrantConfig` 自动探活与建表（REST 探活创建 `myagent_knowledge` 集合，Cosine 度量）。
   * 编写 `QdrantStoreLiveTest`，完成向量切片写入与跨领域语义检索验证（相似度得分 > 0.8）。
-- [ ] **里程碑 4.2：工业级文档摄取流水线（MinIO + 智能切片 + documentId 身份与删除重建）（待开始 ⏳）**
+- [x] **里程碑 4.2：工业级文档摄取流水线（MinIO + 智能切片 + documentId 身份与删除重建）（已完成 ✅）**
   * **身份标识解耦**：落地 [`docs/DOCUMENT_ID_DESIGN.md`](file:///D:/vibe/LearnAgent/docs/DOCUMENT_ID_DESIGN.md) 方案 B，调用方显式声明稳定不变的业务 Key `documentId`（如 `onboarding-guide`），与文件名彻底解耦，避免文件重命名导致的版本追踪断裂。
   * **第一层（文件级哈希校验防重）**：MinIO Object Key 统一规范为 `documents/{documentId}`，并在 User Metadata 中持久化 `original-filename` 与 `content-hash`（文件 SHA-256）。上传时通过 `statObject` 对比哈希，内容未变直接短路跳过，零额外向量计算开销。
   * **第二层（原子化整文档删除重建）**：当哈希变更或首次上传时，统一通过 `embeddingStore.removeAll(metadataKey("document_id").isEqualTo(documentId))` 将该文档历史切片整体清空，再整批写入新切片。无论新版本切片变多、变少还是重排，均能彻底消除“孤儿切片”与知识库历史版本污染。
   * **智能切片与批量向量化**：采用 `DocumentSplitters.recursive(400, 50)` 进行递归切片，每个切片注入 `document_id`、`chunk_index`、`content_hash`、`original_filename` 等元数据，批量计算向量并写入 Qdrant。
-  * **业务下沉与接口暴露**：将核心逻辑从 Controller 剥离并下沉至独立的 `KnowledgeService`，提供 `POST /knowledge/documents`（文档上传/更新）与 `GET /knowledge/documents`（文档 ID 列表查询调试），并编写 `KnowledgeIngestionLiveTest` 进行全场景自动化回归。
-- [ ] **里程碑 4.3：Elasticsearch 全文检索与混合检索融合（待开始 ⏳）**
+  * **业务下沉与接口暴露**：将核心逻辑从 Controller 剥离并下沉至独立的 `KnowledgeService`，提供 `POST /knowledge/documents`（文档上传/更新）与 `GET /knowledge/documents`（文档 ID 列表查询调试），并通过 `KnowledgeIngestionLiveTest` 进行全场景自动化回归（100% 通过）。
+- [ ] **里程碑 4.3：Elasticsearch 全文检索与混合检索融合（下一里程碑 🚀）**
   * 文本切片同步入库 Elasticsearch 建立分词倒排索引。
   * 实现双路召回（向量语义 + ES 倒排）与 RRF（倒数排名融合）排序。
   * 封装为 `@Tool` 挂载到 Agent，让智能体具备查阅企业知识库回答问题的能力。
 
 ### 4.3 里程碑 4.1 落地成果与复盘总结
-1. **本地向量基石**：成功整合本地 **Ollama** 运行的旗舰多语言嵌入模型 `bge-m3`（1024 维），带 Apple Silicon Metal GPU 硬件加速，实现零 API 成本、毫秒级向量推理。
+1. **本地向量基石**：成功整合本地 **Ollama** 运行的旗舰多语言嵌入模型 `bge-m3`（1024 维），带 Apple Silicon Metal / 本地 GPU 硬件加速，实现零 API 成本、毫秒级向量推理。
 2. **Qdrant 自动化配置与版本对齐**：
    * 编写 `QdrantConfig` 实现自动化探活建表（无需手动建 Collection，自动以 1024 维 Cosine 度量初始化）。
    * 显式升级 `io.qdrant:client:1.19.0`，精准对齐 Docker 服务端版本，彻底消除版本兼容性警告。
@@ -160,7 +160,18 @@ flowchart TD
 4. **从纯检索 (R) 到完整问答 (R+A+G)**：
    * 实现了不仅能查出原始资料片段，更通过商汤 SenseNova `ChatModel` 阅读参考资料，输出自然流畅的最终答复。
    * 控制器已暴露完整端点：`/knowledge/ingest`（录入）、`/knowledge/search`（向量检索）、`/knowledge/ask`（完整 RAG 自然语言问答）。
-   * [`test.http`](file:///Users/jin/WorkSpaceIDEA/Spring/MyAgent/test.http) 补充了阶段四的全套一键测试用例。
+
+### 4.4 里程碑 4.2 落地成果与复盘总结
+1. **对象存储 MinIO 整合与自动建桶**：
+   * 引入 `io.minio:minio:8.5.17`，构建 `MinioConfig` 实现容器探活与 `myagent-docs` 存储桶自动初始化。
+2. **两层防重与版本管理闭环**：
+   * 第一层：利用 MinIO User Metadata 记录 SHA-256 内容哈希，相同文档重复上传直接短路跳过，节省 Embedding 算力。
+   * 第二层：利用 `embeddingStore.removeAll(metadataKey("document_id").isEqualTo(documentId))` 实现整文档切片的原子级清空重建，彻底规避孤儿切片与历史旧版本污染。
+3. **核心业务下沉与分层解耦**：
+   * 核心流水线封装于 `KnowledgeService`，由 `KnowledgeController` 对外暴露 `POST /knowledge/documents` 与 `GET /knowledge/documents`。
+4. **自动化回归套件**：
+   * 编写 `KnowledgeIngestionLiveTest`，覆盖首次摄取、哈希短路防重、内容变更原子重建 3 大典型场景，全部测试全绿通过。
+   * `test.http` 补充了多段文件上传与跨版本检索用例。
 
 ---
 

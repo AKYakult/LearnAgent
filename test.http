@@ -55,3 +55,32 @@ GET http://localhost:8080/api/agent/knowledge/ask?query=请告诉我商汤日日
 
 ### 4.9 完整 RAG 问答防幻觉测试 3（问库里没有的知识：验证模型是否如实告知未知，切勿胡编乱造）
 GET http://localhost:8080/api/agent/knowledge/ask?query=量子力学的薛定谔波动方程核心推导是什么？
+
+
+### ============================================================================
+### 阶段四·里程碑 4.2：工业级文档摄取流水线（MinIO + documentId 身份 + 两层防重重建）
+### ============================================================================
+
+### 4.10 首次上传/更新文档（上传 sample_doc.md，显式指定 documentId 为 team-spec）
+POST http://localhost:8080/knowledge/documents
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="documentId"
+
+team-spec
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="sample_doc.md"
+Content-Type: text/markdown
+
+< ./docs/sample_doc.md
+--WebAppBoundary--
+
+### 4.11 查询已上传的文档 ID 列表（调试与查看 MinIO 注册清单）
+GET http://localhost:8080/knowledge/documents
+
+### 4.12 检索上传的文档（基于 team-spec 文档内容的语义召回）
+GET http://localhost:8080/knowledge/search?query=研发团队使用的是什么向量模型？维度是多少？&maxResults=2
+
+### 4.13 基于最新文档的 RAG 自然语言问答
+GET http://localhost:8080/knowledge/ask?query=请总结一下我们团队的核心技术栈和环境规范都有哪些？
