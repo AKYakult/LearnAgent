@@ -29,7 +29,7 @@ public class LlmConfig {
     @Value("${llm.sensenova.base-url:https://token.sensenova.cn/v1}")
     private String baseUrl;
 
-    @Value("${llm.sensenova.model-name:SenseChat-5}")
+    @Value("${llm.sensenova.model-name:sensenova-6.8-flash-lite}")
     private String modelName;
 
     @Value("${llm.sensenova.temperature:0.2}")
