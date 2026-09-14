@@ -28,11 +28,12 @@ flowchart TD
         P3_3[会话上下文 ChatMemory]
     end
 
-    subgraph Phase4["阶段 4：外挂大脑（RAG 与混合检索）（下一阶段 🚀）"]
+    subgraph Phase4["阶段 4：外挂大脑（RAG 与混合检索）（当前阶段 🚀）"]
         P4_1[MinIO 原始文档存储] --> P4_2[分块与 Embedding 向量化]
-        P4_2 --> P4_3[Qdrant / PgVector 语义向量检索]
-        P4_1 --> P4_4[Elasticsearch 全文精准检索]
-        P4_3 & P4_4 --> P4_5[混合检索融合作为 Agent 工具]
+        P4_2 --> P4_3[Qdrant Dense 语义向量]
+        P4_2 --> P4_4[Qdrant 1.15+ 多语言 BM25 稀疏向量]
+        P4_3 & P4_4 --> P4_5[Qdrant Universal Query API 服务端 RRF 融合]
+        P4_5 --> P4_6[封装为 Agent 声明式工具 @Tool]
     end
 
     subgraph Phase5["阶段 5：进阶实战与生产就绪"]
@@ -141,15 +142,18 @@ flowchart TD
   * 编写 `QdrantConfig` 自动探活与建表（REST 探活创建 `myagent_knowledge` 集合，Cosine 度量）。
   * 编写 `QdrantStoreLiveTest`，完成向量切片写入与跨领域语义检索验证（相似度得分 > 0.8）。
 - [x] **里程碑 4.2：工业级文档摄取流水线（MinIO + 智能切片 + documentId 身份与删除重建）（已完成 ✅）**
-  * **身份标识解耦**：落地 [`docs/DOCUMENT_ID_DESIGN.md`](file:///D:/vibe/LearnAgent/docs/DOCUMENT_ID_DESIGN.md) 方案 B，调用方显式声明稳定不变的业务 Key `documentId`（如 `onboarding-guide`），与文件名彻底解耦，避免文件重命名导致的版本追踪断裂。
+  * **身份标识解耦**：落地 [`docs/DOCUMENT_ID_DESIGN.md`](file:///Users/jin/WorkSpaceIDEA/Spring/MyAgent/docs/DOCUMENT_ID_DESIGN.md) 方案 B，调用方显式声明稳定不变的业务 Key `documentId`（如 `onboarding-guide`），与文件名彻底解耦，避免文件重命名导致的版本追踪断裂。
   * **第一层（文件级哈希校验防重）**：MinIO Object Key 统一规范为 `documents/{documentId}`，并在 User Metadata 中持久化 `original-filename` 与 `content-hash`（文件 SHA-256）。上传时通过 `statObject` 对比哈希，内容未变直接短路跳过，零额外向量计算开销。
   * **第二层（原子化整文档删除重建）**：当哈希变更或首次上传时，统一通过 `embeddingStore.removeAll(metadataKey("document_id").isEqualTo(documentId))` 将该文档历史切片整体清空，再整批写入新切片。无论新版本切片变多、变少还是重排，均能彻底消除“孤儿切片”与知识库历史版本污染。
   * **智能切片与批量向量化**：采用 `DocumentSplitters.recursive(400, 50)` 进行递归切片，每个切片注入 `document_id`、`chunk_index`、`content_hash`、`original_filename` 等元数据，批量计算向量并写入 Qdrant。
   * **业务下沉与接口暴露**：将核心逻辑从 Controller 剥离并下沉至独立的 `KnowledgeService`，提供 `POST /knowledge/documents`（文档上传/更新）与 `GET /knowledge/documents`（文档 ID 列表查询调试），并通过 `KnowledgeIngestionLiveTest` 进行全场景自动化回归（100% 通过）。
-- [ ] **里程碑 4.3：Elasticsearch 全文检索与混合检索融合（下一里程碑 🚀）**
-  * 文本切片同步入库 Elasticsearch 建立分词倒排索引。
-  * 实现双路召回（向量语义 + ES 倒排）与 RRF（倒数排名融合）排序。
-  * 封装为 `@Tool` 挂载到 Agent，让智能体具备查阅企业知识库回答问题的能力。
+- [x] **里程碑 4.3：Qdrant 原生混合检索与多语言 BM25 融合（单引擎闭环）（已完成 ✅）**
+  * **架构决策与演进**：经过深入调研确认，Qdrant 1.15+ 原生支持 `multilingual` 中文分词器、同 Point 存储 Dense 与 Sparse 向量（配置 `modifier: idf` 服务端自动计算逆文档频率），并通过 Universal Query API（`query_points`）提供服务端并行 Prefetch 与 RRF（倒数排名融合）。因此采用 Qdrant 单引擎混合检索方案，避免引入 Elasticsearch 带来的双写一致性痛点与巨大的本地内存开销。
+  * [x] **任务 4.3.1（多向量集合配置升级）**：改造 `QdrantConfig`，初始化集合时同时支持 1024 维 Dense 向量与带 `modifier: idf` 的 Sparse 向量（启用 `multilingual` 多语言支持）。
+  * [x] **任务 4.3.2（摄取流水线多向量化）**：扩展 `KnowledgeService.ingestDocument`，借助 Qdrant 1.15+ 原生 `Points.Document`（启用 `tokenizer: multilingual`），文档切片分块后由服务端直接生成 BM25 稀疏特征，单批次统一写入 Qdrant；保留 `document_id` 原子清理重建能力。
+  * [x] **任务 4.3.3（服务端 RRF 混合检索）**：基于 `io.qdrant:client` 实现 `hybridSearch`，发起包含 Dense Prefetch + Sparse Prefetch 的 QueryPoints 请求，指定 `Fusion.RRF`，单次 RPC 完成召回与排序。
+  * [x] **任务 4.3.4（Agent 知识库工具化）**：编写 `KnowledgeTools`，将混合检索封装为声明式工具 `@Tool` 挂载至 `Assistant`，赋予智能体自主查阅私域知识库解决复合问题的闭环能力。
+  * [x] **任务 4.3.5（自动化测试与端点联调）**：编写 `KnowledgeHybridSearchLiveTest`，覆盖专有名词精确命中与语义泛化混合检索，并在 `test.http` 中补充用例。
 
 ### 4.3 里程碑 4.1 落地成果与复盘总结
 1. **本地向量基石**：成功整合本地 **Ollama** 运行的旗舰多语言嵌入模型 `bge-m3`（1024 维），带 Apple Silicon Metal / 本地 GPU 硬件加速，实现零 API 成本、毫秒级向量推理。
@@ -166,12 +170,29 @@ flowchart TD
    * 引入 `io.minio:minio:8.5.17`，构建 `MinioConfig` 实现容器探活与 `myagent-docs` 存储桶自动初始化。
 2. **两层防重与版本管理闭环**：
    * 第一层：利用 MinIO User Metadata 记录 SHA-256 内容哈希，相同文档重复上传直接短路跳过，节省 Embedding 算力。
-   * 第二层：利用 `embeddingStore.removeAll(metadataKey("document_id").isEqualTo(documentId))` 实现整文档切片的原子级清空重建，彻底规避孤儿切片与历史旧版本污染。
+   * 第二层：利用整文档切片的原子级清空重建，彻底规避孤儿切片与历史旧版本污染。
 3. **核心业务下沉与分层解耦**：
    * 核心流水线封装于 `KnowledgeService`，由 `KnowledgeController` 对外暴露 `POST /knowledge/documents` 与 `GET /knowledge/documents`。
 4. **自动化回归套件**：
    * 编写 `KnowledgeIngestionLiveTest`，覆盖首次摄取、哈希短路防重、内容变更原子重建 3 大典型场景，全部测试全绿通过。
    * `test.http` 补充了多段文件上传与跨版本检索用例。
+
+### 4.5 里程碑 4.3 落地成果与复盘总结
+1. **Qdrant 单引擎混合检索架构升级**：
+   * 舍弃繁重且存在双写一致性风险的 Elasticsearch，全面采用 Qdrant 1.15+ 原生多向量架构。
+   * 单集合同 Point 存储：默认稠密向量（`""`，1024 维，Cosine 度量）+ BM25 稀疏向量（`"bm25"`，`modifier: idf`）。
+2. **Qdrant 1.15+ 服务端原生多语言分词与稀疏编码**：
+   * 彻底告别客户端手写分词器或依赖外部 Python FastEmbed 服务。
+   * 通过在 `Points.Document` 中配置 `options: { tokenizer: "multilingual", stemmer: { type: "none" }, stopwords: {} }`，将中日韩分词与稀疏特征提取完全交给 Qdrant 服务端原生执行。
+   * 配合服务端动态 IDF，精准捕获房间号（`2108-A`）、研发代号（`Project-Nova-99`）等稠密向量易遗漏的离散关键词。
+3. **Universal Query API 与服务端 RRF 倒数排名融合**：
+   * 单次 gRPC RPC 请求包含两个 `PrefetchQuery`（Dense 语义粗排 + Sparse 稀疏粗排），服务端执行 `QueryFactory.fusion(Points.Fusion.RRF)`，彻底规避业务端手动算分重排与网络多次往返。
+4. **Agent 声明式工具赋能**：
+   * 封装 `KnowledgeTools`（`@Tool("searchKnowledge")`），与 `MathTools` 并列挂载至 `Assistant`。
+   * 赋予智能体复合链式推理能力（例如：自主从知识库查出办公楼层，再调用数学计算工具完成衍生计算）。
+5. **双 LiveTest 全绿回归与端点验证**：
+   * `KnowledgeHybridSearchLiveTest` 与 `KnowledgeIngestionLiveTest` 100% 通过。
+   * 全项目 `./gradlew test` 6 大测试套件全部执行成功。
 
 ---
 

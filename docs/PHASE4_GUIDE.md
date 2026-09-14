@@ -67,3 +67,35 @@
 * **Elasticvue Elasticsearch 控制台**：
   * `http://localhost:8088`
 
+---
+
+## 四、 架构演进决策：Qdrant 单引擎原生混合检索（Dense + Sparse BM25 + RRF）
+
+### 1. 为什么在当前阶段放弃引入 Elasticsearch？
+在早期的 RAG 架构设计中，行业普遍采用“Elasticsearch（负责 BM25 关键词倒排） + 向量数据库（负责语义余弦相似度）”的双引擎方案。但在实践中该方案存在显著劣势：
+1. **双写一致性与分布式事务成本**：当文档更新或按 `document_id` 删除时，必须同时清理 ES 和向量库，任何一端失败都会导致版本脏数据和孤儿切片。
+2. **硬件开销沉重**：Elasticsearch 运行需要至少 512MB~2GB 的独立 JVM 堆内存，对本地开发环境造成不必要的负担。
+3. **多次网络往返**：应用层需要分别向 ES 和向量库各发起一次 RPC 查询，拉取多个候选集后，再在 Java 应用层手写 RRF 算法进行融合排序。
+
+### 2. Qdrant 1.15+ 的突破与原生支持
+经深入调研官方最新技术规范，现代 Qdrant（1.15+ / 1.19+）已原生解决了上述痛点：
+1. **多语言中文原生分词（Multilingual Tokenizer 与 Document 模型）**：
+   * 1.15 起 Qdrant 重构了分词器模块，正式将 `multilingual` 多语言（涵盖无空格边界的中文 CJK）打包进官方主线镜像。
+   * **关键配置细节**：在通过 `Points.Document` 发送原始文本至 `model: "qdrant/bm25"` 时，必须显式传递 `options`:
+     ```java
+     Map.of(
+         "tokenizer", ValueFactory.value("multilingual"),
+         "stemmer", ValueFactory.value(Map.of("type", ValueFactory.value("none"))),
+         "stopwords", ValueFactory.value(Map.of())
+     )
+     ```
+     一旦指定 `tokenizer: multilingual`，Qdrant 便会在服务端直接对中文做 CJK 分词并转为稀疏向量，客户端无需引入外部 Python FastEmbed 或手写切词器，即可实现纯天然的服务端中英文混合分词。
+2. **同 Point 挂载 Dense 向量与 Sparse 向量**：
+   * 可以在同一个 Collection 中同时配置 1024 维 Dense 向量（由 Ollama `bge-m3` 计算）和带有 `modifier: "idf"` 的 Sparse 向量。
+   * **`modifier: "idf"` 的妙处**：Qdrant 服务端在内存中依据全局文档分布自动维护与计算逆文档频率（IDF），彻底摆脱客户端维护全局词典的包袱。
+3. **Universal Query API（单次 RPC 完成 Prefetch + RRF 融合）**：
+   * 客户端只需向 Qdrant 发起单次 `query_points` 请求：
+     * `prefetch` 槽位 1：Dense 向量语义粗排；
+     * `prefetch` 槽位 2：Sparse 向量 BM25 精确匹配（以 `Document` 形式提交 query 文本，服务端原生切词）；
+     * 主查询：`fusion: "rrf"`（倒数排名融合）。
+   * Qdrant 服务端在数据库内核中并行召回并通过公式 $RRF(d) = \sum \frac{1}{60 + rank(d)}$ 完成两路打分合并，直接返回融合后的最佳 Top-K 结果。

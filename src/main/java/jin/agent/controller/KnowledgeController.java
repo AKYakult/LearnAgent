@@ -70,6 +70,46 @@ public class KnowledgeController {
     }
 
     /**
+     * 纯 BM25 稀疏向量检索端点 (Sparse BM25 Only，精准匹配专有名词与编号)
+     */
+    @GetMapping("/bm25-search")
+    public ResponseEntity<Map<String, Object>> bm25Search(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "3") int maxResults) {
+        long startTime = System.currentTimeMillis();
+        List<KnowledgeService.SearchResultItem> matches = knowledgeService.bm25Search(query, maxResults);
+        long cost = System.currentTimeMillis() - startTime;
+
+        return ResponseEntity.ok(Map.of(
+                "query", query,
+                "count", matches.size(),
+                "matches", matches,
+                "costMs", cost,
+                "status", "success"
+        ));
+    }
+
+    /**
+     * Qdrant 原生单引擎混合检索端点 (Dense + BM25 + RRF 融合)
+     */
+    @GetMapping("/hybrid-search")
+    public ResponseEntity<Map<String, Object>> hybridSearch(
+            @RequestParam String query,
+            @RequestParam(defaultValue = "3") int maxResults) {
+        long startTime = System.currentTimeMillis();
+        List<KnowledgeService.SearchResultItem> matches = knowledgeService.hybridSearch(query, maxResults);
+        long cost = System.currentTimeMillis() - startTime;
+
+        return ResponseEntity.ok(Map.of(
+                "query", query,
+                "count", matches.size(),
+                "matches", matches,
+                "costMs", cost,
+                "status", "success"
+        ));
+    }
+
+    /**
      * 完整 RAG 检索增强生成问答端点
      */
     @GetMapping("/ask")

@@ -84,3 +84,96 @@ GET http://localhost:8080/knowledge/search?query=研发团队使用的是什么�
 
 ### 4.13 基于最新文档的 RAG 自然语言问答
 GET http://localhost:8080/knowledge/ask?query=请总结一下我们团队的核心技术栈和环境规范都有哪些？
+
+
+### ============================================================================
+### 阶段四·里程碑 4.3：三大检索机制深度对比与混合检索（向量 / BM25 / 混合）
+### ============================================================================
+
+### 4.14 准备工作：上传包含研发代号与房间号的技术规范文档
+# 上传 docs/tech_spec_doc.md，显式指定 documentId 为 company-tech-spec
+# Qdrant 自动在后台生成：1024 维 Dense 向量 + 原生 multilingual BM25 稀疏特征
+POST http://localhost:8080/knowledge/documents
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+
+--WebAppBoundary
+Content-Disposition: form-data; name="documentId"
+
+company-tech-spec
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="tech_spec_doc.md"
+Content-Type: text/markdown
+
+< ./docs/tech_spec_doc.md
+--WebAppBoundary--
+
+
+### ----------------------------------------------------------------------------
+### 【机制一】：纯稠密向量语义检索（Dense Vector Search Only）
+### 底层原理：
+###   1. 调用本地 Ollama bge-m3 模型将 query 转换为 1024 维密集浮点向量；
+###   2. 在 Qdrant 稠密向量空间计算 Cosine（余弦距离）相似度；
+### 适用场景：
+###   - 擅长：同义词、自然语言意图理解、概念泛化（即使关键词完全不同也能根据语义命中）。
+###   - 局限：对极端生僻编号、代号（如 2108-A、Project-Nova-99）容易发生“语义稀释”或产生漂移。
+### 返回得分：余弦相似度分数（如 0.854，接近 1.0 表示语义越相似）。
+### ----------------------------------------------------------------------------
+
+### 4.15 纯向量检索测试 A（意图与泛化：用完全不同的近义词提问，依靠语义坐标精准命中）
+GET http://localhost:8080/knowledge/search?query=研发工程师平时都在哪里办公？&maxResults=2
+
+### 4.16 纯向量检索测试 B（生僻代号与房间号：观察没有关键词倒排时，纯向量检索的排序与得分）
+GET http://localhost:8080/knowledge/search?query=研发代号 Project-Nova-99 的团队房间号是多少？&maxResults=2
+
+
+### ----------------------------------------------------------------------------
+### 【机制二】：纯 BM25 稀疏特征检索（Sparse BM25 Search Only）
+### 底层原理：
+###   1. 使用 Qdrant 1.15+ 服务端原生 multilingual CJK 分词器对 query 自动切词；
+###   2. 结合服务端动态维护的全局词频与逆文档频率（modifier: idf）计算 BM25 关键词匹配分；
+### 适用场景：
+###   - 擅长：极端专有名词、生僻代号、合同编号、人名、货号的 100% 精确字面抓取。
+###   - 局限：必须包含字面关键词，完全无法理解未出现关键词的同义语义。
+### 返回得分：BM25 统计相关性得分（如 1.258，根据词频与逆文档频率动态累加）。
+### ----------------------------------------------------------------------------
+
+### 4.17 纯 BM25 检索测试 A（专有名词与编号：精准字面秒级匹配 Project-Nova-99 与 2108-A）
+GET http://localhost:8080/knowledge/bm25-search?query=研发代号 Project-Nova-99 的团队房间号是多少？&maxResults=2
+
+### 4.18 纯 BM25 检索测试 B（无空格中文连贯短语：验证 Qdrant 服务端原生 multilingual 切词）
+GET http://localhost:8080/knowledge/bm25-search?query=核心架构研发人员集中办公地点&maxResults=2
+
+### 4.19 纯 BM25 检索测试 C（故意使用同义词提问：观察因缺少字面关键词导致的漏检现象）
+GET http://localhost:8080/knowledge/bm25-search?query=研发工程师平时都在哪里办公？&maxResults=2
+
+
+### ----------------------------------------------------------------------------
+### 【机制三】：Qdrant 原生单引擎混合检索（Dense + Sparse BM25 + 服务端 RRF 融合）
+### 底层原理：
+###   1. 单次 Universal Query API RPC 发起双路并发粗排：
+###      - Prefetch 槽位 1：Dense 向量语义粗排；
+###      - Prefetch 槽位 2：Sparse 向量 BM25 精准粗排；
+###   2. Qdrant 内核执行服务端 RRF（Reciprocal Rank Fusion）倒数排名融合算法：
+###      Score(d) = 1 / (60 + rank_dense(d)) + 1 / (60 + rank_sparse(d))
+### 适用场景：
+###   - 工业级最优解：兼得“纯向量的语义意图理解”与“BM25 的生僻专有名词精确匹配”，互相弥补短板。
+### 返回得分：RRF 倒数排名融合得分（归一化得分，如 1.0 或 0.833）。
+### ----------------------------------------------------------------------------
+
+### 4.20 混合检索测试（兼具语义泛化与精确专有名词的一击必杀）
+GET http://localhost:8080/knowledge/hybrid-search?query=研发代号 Project-Nova-99 的团队房间号是多少？&maxResults=2
+
+
+### ============================================================================
+### 阶段四·里程碑 4.3（进阶）：完整 RAG 问答与 Agent 智能体自主工具调度
+### ============================================================================
+
+### 4.21 基于混合检索增强的完整 RAG 自然语言问答
+# 流程：Qdrant 混合检索召回高质量切片 -> 组装参考背景 -> 商汤日日新模型客观自然语言作答
+GET http://localhost:8080/knowledge/ask?query=请问研发代号 Project-Nova-99 的团队办公地点在哪个大厦几层哪个房间？
+
+### 4.22 声明式 Agent 复合链式推理测试 1（知识检索 + 数学乘法：自主查出 21 层并计算楼高）
+GET http://localhost:8080/api/agent/declarative?query=请查阅团队技术规范文档，告诉我我们研发团队在几层办公？如果每层楼高 3.5 米，第 21 层离地面大约有多少米？
+
+### 4.23 声明式 Agent 复合链式推理测试 2（跨领域复合：自主查团队代号 + 几何圆面积精确计算）
+GET http://localhost:8080/api/agent/declarative?query=请从知识库中查询我们研发团队的代号是什么？并帮我计算一个半径为 5.0 的圆的面积是多少？
