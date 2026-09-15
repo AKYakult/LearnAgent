@@ -92,6 +92,8 @@ flowchart TD
 
 ## 阶段三：LangChain4j 声明式工程化演进（状态：已完成 ✅）
 
+> 📖 **进阶实操与复习指南**：详见 [`docs/PHASE3_GUIDE.md`](docs/PHASE3_GUIDE.md)
+
 ### 3.1 核心目标
 * 对比阶段一中手写的 `while` 循环与单出入参限制，体验 LangChain4j 的声明式封装。
 * 理解框架背后的工作原理：**框架不是魔法，只是用 JDK 动态代理 + OpenAI Function Calling 规范帮我们自动完成了阶段一我们手写的事**。
@@ -129,7 +131,9 @@ flowchart TD
 
 ---
 
-## 阶段四：知识库外挂与混合检索增强（RAG）（状态：当前进行 🚀）
+## 阶段四：知识库外挂与混合检索增强（RAG）（状态：已完成 ✅）
+
+> 📖 **进阶实操与复习指南**：详见 [`docs/PHASE4_GUIDE.md`](docs/PHASE4_GUIDE.md) 与 [`docs/DOCUMENT_ID_DESIGN.md`](docs/DOCUMENT_ID_DESIGN.md)
 
 ### 4.1 核心目标
 * 让 Agent 拥有外部“海马体”与私域知识，解决大模型幻觉与信息滞后问题。
@@ -142,7 +146,7 @@ flowchart TD
   * 编写 `QdrantConfig` 自动探活与建表（REST 探活创建 `myagent_knowledge` 集合，Cosine 度量）。
   * 编写 `QdrantStoreLiveTest`，完成向量切片写入与跨领域语义检索验证（相似度得分 > 0.8）。
 - [x] **里程碑 4.2：工业级文档摄取流水线（MinIO + 智能切片 + documentId 身份与删除重建）（已完成 ✅）**
-  * **身份标识解耦**：落地 [`docs/DOCUMENT_ID_DESIGN.md`](file:///Users/jin/WorkSpaceIDEA/Spring/MyAgent/docs/DOCUMENT_ID_DESIGN.md) 方案 B，调用方显式声明稳定不变的业务 Key `documentId`（如 `onboarding-guide`），与文件名彻底解耦，避免文件重命名导致的版本追踪断裂。
+  * **身份标识解耦**：落地 [`docs/DOCUMENT_ID_DESIGN.md`](docs/DOCUMENT_ID_DESIGN.md) 方案 B，调用方显式声明稳定不变的业务 Key `documentId`（如 `onboarding-guide`），与文件名彻底解耦，避免文件重命名导致的版本追踪断裂。
   * **第一层（文件级哈希校验防重）**：MinIO Object Key 统一规范为 `documents/{documentId}`，并在 User Metadata 中持久化 `original-filename` 与 `content-hash`（文件 SHA-256）。上传时通过 `statObject` 对比哈希，内容未变直接短路跳过，零额外向量计算开销。
   * **第二层（原子化整文档删除重建）**：当哈希变更或首次上传时，统一通过 `embeddingStore.removeAll(metadataKey("document_id").isEqualTo(documentId))` 将该文档历史切片整体清空，再整批写入新切片。无论新版本切片变多、变少还是重排，均能彻底消除“孤儿切片”与知识库历史版本污染。
   * **智能切片与批量向量化**：采用 `DocumentSplitters.recursive(400, 50)` 进行递归切片，每个切片注入 `document_id`、`chunk_index`、`content_hash`、`original_filename` 等元数据，批量计算向量并写入 Qdrant。
@@ -197,6 +201,8 @@ flowchart TD
 ---
 
 ## 阶段五：进阶实战与生产能力（状态：当前进行 🚀）
+
+> 📖 **进阶实操与复习指南**：详见 [`docs/PHASE5_GUIDE.md`](docs/PHASE5_GUIDE.md)
 
 ### 5.1 阶段五拆解任务清单
 - [x] **里程碑 5.1：多会话隔离与会话历史持久化（PostgreSQL + ChatMemoryStore）（已完成 ✅）**

@@ -79,7 +79,7 @@ public class AgentController {
     public Map<String, Object> askDeclarative(
             @RequestParam(defaultValue = "用户问题")
             String query,
-            @RequestParam(defaultValue = "会话ID")
+            @RequestParam(defaultValue = "default")
             String conversationId) {
         long startTime = System.currentTimeMillis();
         String answer = assistant.chat(conversationId, query);
