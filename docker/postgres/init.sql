@@ -6,24 +6,20 @@
 -- 1. 开启 pgvector 扩展插件（用于支持向量存储与欧式距离、余弦相似度检索）
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- 2. 预备会话记忆持久化表（供阶段 5 会话历史存盘使用）
-CREATE TABLE IF NOT EXISTS chat_memory (
+-- 2. 活跃会话记忆快照表（供阶段 5 LangChain4j ChatMemoryStore 存储多态消息序列化 JSON）
+CREATE TABLE IF NOT EXISTS chat_memory_store (
+    conversation_id VARCHAR(64) PRIMARY KEY,
+    messages_json TEXT NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3. 人类可读的会话消息审计流水表（供阶段 5 前端与管理端查询历史记录）
+CREATE TABLE IF NOT EXISTS chat_messages (
     id BIGSERIAL PRIMARY KEY,
     conversation_id VARCHAR(64) NOT NULL,
-    message_type VARCHAR(32) NOT NULL,
+    sender VARCHAR(32) NOT NULL,
     content TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_chat_memory_conv_id ON chat_memory(conversation_id);
-
--- 3. 预备文档知识片段向量表（供阶段 4 关系+向量混合存储演示备选）
-CREATE TABLE IF NOT EXISTS document_chunks (
-    id BIGSERIAL PRIMARY KEY,
-    document_name VARCHAR(255) NOT NULL,
-    chunk_index INT NOT NULL,
-    content TEXT NOT NULL,
-    embedding vector(1024), -- 预留 1024 维通用文本向量（如 bge-large 或 text-embedding-3）
-    metadata JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_conv_id ON chat_messages(conversation_id);
