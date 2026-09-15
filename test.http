@@ -202,4 +202,4 @@ GET http://localhost:8080/api/agent/conversations/user-alice
 GET http://localhost:8080/api/agent/conversations/user-bob
 
 ### 5.7 清空用户 A 的会话记忆与审计记录（同时驱逐内存与 PostgreSQL 持久化记录）
-DELETE http://localhost:8080/api/agent/conversations/user-alice
+DELETE http://localhost:8080/api/agent/conversations/user-alice
