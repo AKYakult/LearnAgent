@@ -1,4 +1,4 @@
-package jin.agent.tool;
+package jin.agent.react.tool;
 
 /**
  * 智能体工具统一抽象接口

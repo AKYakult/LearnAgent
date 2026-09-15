@@ -27,7 +27,7 @@ public class KnowledgeTools {
 
     @Tool("从企业私域知识库中查询团队规范、办公地点、入职指引、技术架构与技术栈等内部文档资料")
     public String searchKnowledge(
-            @P("搜索关键词或自然语言问题，例如'新人入职办公地点在几层'或'团队使用的向量模型'")
+            @P("搜索关键词或自然语言问题")
             String query) {
         log.info("🔍 [Tool 触发] searchKnowledge: query='{}'", query);
 

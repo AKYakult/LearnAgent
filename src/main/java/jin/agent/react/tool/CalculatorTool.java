@@ -1,4 +1,4 @@
-package jin.agent.tool;
+package jin.agent.react.tool;
 
 import org.springframework.stereotype.Component;
 

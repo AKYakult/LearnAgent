@@ -1,7 +1,7 @@
 package jin.agent.react;
 
 import dev.langchain4j.model.chat.ChatModel;
-import jin.agent.tool.AgentTool;
+import jin.agent.react.tool.AgentTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
