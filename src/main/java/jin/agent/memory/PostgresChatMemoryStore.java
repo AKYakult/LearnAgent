@@ -3,12 +3,14 @@ package jin.agent.memory;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.ChatMessageDeserializer;
 import dev.langchain4j.data.message.ChatMessageSerializer;
+import dev.langchain4j.data.message.ChatMessageType;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -22,6 +24,8 @@ import java.util.List;
  *    完整保真序列化为 JSON 字符串；
  * 3. 利用 PostgreSQL 原生 Upsert 特性 (ON CONFLICT DO UPDATE)，单条 SQL 即可完成原子更新，
  *    避免复杂的分布式事务，极大提升读写吞吐并杜绝 Function Calling 上下文丢失。
+ * 4. 内置消息头自愈清洗逻辑 (sanitizeMessages)：自动剔除因滑动窗口淘汰残留在开头的孤儿 AI/Tool 响应，
+ *    防止大模型 API 报 400 InvalidRequest 错误。
  */
 @Repository
 public class PostgresChatMemoryStore implements ChatMemoryStore {
@@ -52,8 +56,39 @@ public class PostgresChatMemoryStore implements ChatMemoryStore {
         }
 
         // 利用 LangChain4j 官方反序列化器还原为多态消息列表
-        List<ChatMessage> messages = ChatMessageDeserializer.messagesFromJson(list.get(0));
+        List<ChatMessage> rawMessages = ChatMessageDeserializer.messagesFromJson(list.get(0));
+
+        // 健壮性自愈清洗：防止滑动窗口淘汰时首部残留孤立的 AI/Tool 消息导致大模型 400 报错
+        List<ChatMessage> messages = sanitizeMessages(rawMessages);
+
         log.debug("✅ [ChatMemoryStore] 成功恢复会话 {} 历史消息 {} 条", conversationId, messages.size());
+        return messages;
+    }
+
+    /**
+     * 清洗畸形消息头：
+     * OpenAI 兼容协议强制要求首条非 SYSTEM 消息必须是 USER 消息。
+     * 若滑动窗口把前置 USER 消息淘汰，仅留下了 AI/Tool 结果，自动剔除首部孤儿消息。
+     */
+    private List<ChatMessage> sanitizeMessages(List<ChatMessage> messages) {
+        if (messages == null || messages.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        int firstValidIndex = 0;
+        while (firstValidIndex < messages.size()) {
+            ChatMessageType type = messages.get(firstValidIndex).type();
+            if (type == ChatMessageType.SYSTEM || type == ChatMessageType.USER) {
+                break;
+            }
+            firstValidIndex++;
+        }
+
+        if (firstValidIndex > 0) {
+            log.warn("⚠️ [ChatMemoryStore] 检测到畸形消息头（首部残留孤立 AI/Tool 消息），已自动剔除前 {} 条无效历史", firstValidIndex);
+            return new ArrayList<>(messages.subList(firstValidIndex, messages.size()));
+        }
+
         return messages;
     }
 

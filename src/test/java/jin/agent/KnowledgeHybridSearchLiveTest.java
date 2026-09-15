@@ -110,11 +110,16 @@ public class KnowledgeHybridSearchLiveTest {
         String userQuery = "请查阅团队技术规范文档，告诉我我们研发团队在几层办公？如果每层楼高 3.5 米，第 21 层离地面大约有多少米？";
         System.out.println("用户提问: " + userQuery);
 
-        String reply = assistant.chat(userQuery);
-        System.out.println("智能体最终回复:\n" + reply);
+        String testSessionId = "test-hybrid-agent-" + System.currentTimeMillis();
+        try {
+            String reply = assistant.chat(testSessionId, userQuery);
+            System.out.println("智能体最终回复:\n" + reply);
 
-        assertNotNull(reply);
-        assertTrue(reply.contains("21") || reply.contains("二十一"), "回答中应包含查出的 21 层");
-        assertTrue(reply.contains("73.5") || reply.contains("70"), "回答中应包含通过数学工具计算出的高度 (73.5 或 70 米)");
+            assertNotNull(reply);
+            assertTrue(reply.contains("21") || reply.contains("二十一"), "回答中应包含查出的 21 层");
+            assertTrue(reply.contains("73.5") || reply.contains("70"), "回答中应包含通过数学工具计算出的高度 (73.5 或 70 米)");
+        } finally {
+            assistant.evictChatMemory(testSessionId);
+        }
     }
 }

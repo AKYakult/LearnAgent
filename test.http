@@ -187,13 +187,13 @@ GET http://localhost:8080/api/agent/declarative?query=请从知识库中查询�
 GET http://localhost:8080/api/agent/declarative?conversationId=user-alice&query=你好，我是爱丽丝，我目前负责智能客服业务。
 
 ### 5.2 用户 B（鲍勃）建立独立会话（验证会话隔离）
-GET http://localhost:8080/api/agent/declarative?conversationId=user-bob&query=你好，我是鲍勃，我目前负责基础设施与向量数据库运维。
+GET http://localhost:8080/api/agent/declarative?conversationId=user-bob&query=hey,我是鲍勃,我目前在学习agent知识
 
 ### 5.3 跨轮提问用户 A：验证记忆保持且不与用户 B 串戏
 GET http://localhost:8080/api/agent/declarative?conversationId=user-alice&query=你还记得我叫什么名字吗？我负责什么业务？
 
 ### 5.4 跨轮提问用户 B：验证记忆保持且不与用户 A 串戏
-GET http://localhost:8080/api/agent/declarative?conversationId=user-bob&query=你还记得我叫什么名字吗？我负责什么业务？
+GET http://localhost:8080/api/agent/declarative?conversationId=user-bob&query=对于我想学习的内容,你有什么建议?
 
 ### 5.5 查看用户 A 的历史对话审计流水（对标 Dify messages 历史）
 GET http://localhost:8080/api/agent/conversations/user-alice
@@ -201,5 +201,8 @@ GET http://localhost:8080/api/agent/conversations/user-alice
 ### 5.6 查看用户 B 的历史对话审计流水
 GET http://localhost:8080/api/agent/conversations/user-bob
 
-### 5.7 清空用户 A 的会话记忆与审计记录（同时驱逐内存与 PostgreSQL 持久化记录）
+### 5.7 清空用户 A 的会话记忆与审计记录（彻底重置爱丽丝）
 DELETE http://localhost:8080/api/agent/conversations/user-alice
+
+### 5.8 清空用户 B 的会话记忆与审计记录（彻底重置鲍勃）
+DELETE http://localhost:8080/api/agent/conversations/user-bob

@@ -113,15 +113,18 @@ public class AgentController {
      */
     @DeleteMapping("/conversations/{conversationId}")
     public Map<String, Object> evictConversation(@PathVariable String conversationId) {
-        // 1. 驱逐并清空 LangChain4j 运行时与快照存储 (PostgresChatMemoryStore)
+        // 1. 驱逐 LangChain4j 运行时 JVM 内存中的 ChatMemory 实例
         assistant.evictChatMemory(conversationId);
 
-        // 2. 清空流水审计表
+        // 2. 物理删除持久化表中的会话快照（chat_memory_store）
+        jdbcTemplate.update("DELETE FROM chat_memory_store WHERE conversation_id = ?", conversationId);
+
+        // 3. 物理删除流水审计表（chat_messages）
         jdbcTemplate.update("DELETE FROM chat_messages WHERE conversation_id = ?", conversationId);
 
         return Map.of(
                 "conversationId", conversationId,
-                "message", "会话上下文与历史记录已成功清除",
+                "message", "会话上下文与历史记录已成功彻底清除",
                 "status", "success"
         );
     }
