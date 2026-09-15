@@ -2,9 +2,11 @@ package jin.agent.controller;
 
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
+import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import jin.agent.declarative.Assistant;
+import jin.agent.memory.PostgresChatMemoryStore;
 import jin.agent.react.ReActEngine;
 import jin.agent.service.KnowledgeService;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -31,19 +33,22 @@ public class AgentController {
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final KnowledgeService knowledgeService;
     private final JdbcTemplate jdbcTemplate;
+    private final PostgresChatMemoryStore postgresChatMemoryStore;
 
     public AgentController(ReActEngine reActEngine,
                            Assistant assistant,
                            EmbeddingModel embeddingModel,
                            EmbeddingStore<TextSegment> embeddingStore,
                            KnowledgeService knowledgeService,
-                           JdbcTemplate jdbcTemplate) {
+                           JdbcTemplate jdbcTemplate,
+                           PostgresChatMemoryStore postgresChatMemoryStore) {
         this.reActEngine = reActEngine;
         this.assistant = assistant;
         this.embeddingModel = embeddingModel;
         this.embeddingStore = embeddingStore;
         this.knowledgeService = knowledgeService;
         this.jdbcTemplate = jdbcTemplate;
+        this.postgresChatMemoryStore = postgresChatMemoryStore;
     }
 
     /**
@@ -72,9 +77,9 @@ public class AgentController {
      */
     @GetMapping("/declarative")
     public Map<String, Object> askDeclarative(
-            @RequestParam(defaultValue = "请计算半径为 4.5 的圆的面积是多少？")
+            @RequestParam(defaultValue = "用户问题")
             String query,
-            @RequestParam(defaultValue = "default")
+            @RequestParam(defaultValue = "会话ID")
             String conversationId) {
         long startTime = System.currentTimeMillis();
         String answer = assistant.chat(conversationId, query);
@@ -113,11 +118,17 @@ public class AgentController {
      */
     @DeleteMapping("/conversations/{conversationId}")
     public Map<String, Object> evictConversation(@PathVariable String conversationId) {
-        // 1. 驱逐 LangChain4j 运行时 JVM 内存中的 ChatMemory 实例
-        assistant.evictChatMemory(conversationId);
+        // 1. 获取该会话记事本并执行 clear()，底层会自动触发 postgresChatMemoryStore.deleteMessages(conversationId)
+        ChatMemory chatMemory = assistant.getChatMemory(conversationId);
+        if (chatMemory != null) {
+            chatMemory.clear(); // 官方标准：清空内存列表并自动触发持久化层 deleteMessages
+        } else {
+            // 若内存中尚未实例化（如服务刚重启后的冷会话），直接调用存储层物理删除快照
+            postgresChatMemoryStore.deleteMessages(conversationId);
+        }
 
-        // 2. 物理删除持久化表中的会话快照（chat_memory_store）
-        jdbcTemplate.update("DELETE FROM chat_memory_store WHERE conversation_id = ?", conversationId);
+        // 2. 从 LangChain4j 内存池中彻底注销驱逐该会话实例
+        assistant.evictChatMemory(conversationId);
 
         // 3. 物理删除流水审计表（chat_messages）
         jdbcTemplate.update("DELETE FROM chat_messages WHERE conversation_id = ?", conversationId);
