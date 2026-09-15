@@ -38,6 +38,10 @@ dependencies {
     // MinIO Java SDK (S3 对象存储)
     implementation("io.minio:minio:8.5.17")
 
+    // 阶段 5 数据库持久化支持 (PostgreSQL + JdbcTemplate)
+    implementation("org.springframework.boot:spring-boot-starter-jdbc")
+    runtimeOnly("org.postgresql:postgresql")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

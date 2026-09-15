@@ -28,7 +28,7 @@ flowchart TD
         P3_3[会话上下文 ChatMemory]
     end
 
-    subgraph Phase4["阶段 4：外挂大脑（RAG 与混合检索）（当前阶段 🚀）"]
+    subgraph Phase4["阶段 4：外挂大脑（RAG 与混合检索）（已完成 ✅）"]
         P4_1[MinIO 原始文档存储] --> P4_2[分块与 Embedding 向量化]
         P4_2 --> P4_3[Qdrant Dense 语义向量]
         P4_2 --> P4_4[Qdrant 1.15+ 多语言 BM25 稀疏向量]
@@ -36,10 +36,10 @@ flowchart TD
         P4_5 --> P4_6[封装为 Agent 声明式工具 @Tool]
     end
 
-    subgraph Phase5["阶段 5：进阶实战与生产就绪"]
-        P5_1[会话持久化至 PostgreSQL]
-        P5_2[流式响应 SSE 打字机]
-        P5_3[多工具协调与容错反思]
+    subgraph Phase5["阶段 5：进阶实战与生产就绪（当前阶段 🚀）"]
+        P5_1[会话隔离与 PostgreSQL 持久化 ✅]
+        P5_2[流式响应 SSE 打字机 ⏳]
+        P5_3[多工具协调与容错反思 ⏳]
     end
 
     Phase1 --> Phase2
@@ -196,12 +196,34 @@ flowchart TD
 
 ---
 
-## 阶段五：进阶实战与生产能力（待开始 ⏳）
+## 阶段五：进阶实战与生产能力（状态：当前进行 🚀）
 
-### 5.1 核心能力
-1. **会话历史持久化**：
-   * 将 `ChatMemory` 中的对话消息序列化并存入 PostgreSQL，支持服务重启后恢复会话上下文。
-2. **流式打字机响应（SSE）**：
-   * 使用 `StreamingChatModel` + Spring WebFlux / `SseEmitter`，实现类似 ChatGPT 的逐字输出效果。
-3. **异常反思与自愈（Self-Correction）**：
-   * 当 Agent 调用的工具返回错误异常时，引导模型反思参数或换用其他工具尝试。
+### 5.1 阶段五拆解任务清单
+- [x] **里程碑 5.1：多会话隔离与会话历史持久化（PostgreSQL + ChatMemoryStore）（已完成 ✅）**
+  * **记忆架构调研与选型**：深入调研 GitHub 顶流 Agent 框架（Letta/MemGPT、LangGraph、Mem0、Dify）的记忆设计模式；明确 Agent 记忆的本质是状态快照（State Snapshot / K-V）而非传统 CRUD，放弃引入笨重且对 PG 特性支持别扭的 MyBatis-Plus，采用透明无黑盒的 Spring 官方 `JdbcTemplate` 与原生高效 Upsert。
+  * **两层记忆架构落地**：
+    1. **第一层（活跃上下文快照层，对标 LangGraph / LangChain4j）**：创建 `chat_memory_store`（`conversation_id VARCHAR(64) PRIMARY KEY`, `messages_json TEXT`），通过 `ChatMessageSerializer.messagesToJson` 将包含多态工具调用（`ToolExecutionRequest` / `ToolExecutionResultMessage`）的滑动窗口精准落盘，单条 SQL `ON CONFLICT (...) DO UPDATE` 完成原子 Upsert。
+    2. **第二层（人类可读审计流水层，对标 Dify）**：创建 `chat_messages` 记录提问与回答明细，支持时间流检索。
+  * **生命周期与接口改造**：
+    * 编写 `DatabaseInitializer` 实现应用启动时表结构自动化幂等初始化。
+    * 编写 `PostgresChatMemoryStore` 实现 LangChain4j 标准 `ChatMemoryStore`。
+    * `Assistant` 接口继承 `ChatMemoryAccess`，引入 `@MemoryId` 注解参数，配合 `ChatMemoryProvider` 实现按会话隔离滑动窗口与缓存驱逐。
+    * 控制器提供 `conversationId` 隔离请求、`/conversations/{conversationId}` 历史拉取以及 `DELETE /conversations/{conversationId}` 会话清理。
+  * **自动化回归验证**：
+    * 编写 `ChatMemoryPersistenceLiveTest`，覆盖多会话彻底隔离（Alice 与 Bob 绝不串戏）、PostgreSQL 物理存盘与 JVM 内存冷驱逐反序列化恢复、工具调用多态结构保真存盘 3 大核心场景，100% 成功通过。
+    * 全工程 7 大测试套件全部执行成功，并在 `test.http` 中补充多会话请求样例。
+- [ ] **里程碑 5.2：流式打字机响应（StreamingChatModel + SSE）（待开始 ⏳）**
+  * 使用 `StreamingChatModel` + Spring `SseEmitter` 或响应式流，实现类似 ChatGPT 的逐字输出效果与工具调用中间状态流式提示。
+- [ ] **里程碑 5.3：多工具协调与异常反思自愈（Self-Correction）（待开始 ⏳）**
+  * 当 Agent 调用的工具返回错误异常时，引导大模型分析失败原因，自主调整入参重试或尝试替代方案。
+
+### 5.2 里程碑 5.1 落地成果与复盘总结
+1. **彻底消除“单例内存串戏”隐患**：
+   * 告别了阶段三单一全局 `MessageWindowChatMemory` 导致的会话混杂缺陷，通过 `@MemoryId` 实现了多租户、多用户的物理上下文绝对隔离。
+2. **PostgreSQL 基础设施正式闭环接入**：
+   * 容器编排中的 PostgreSQL（`myagent-postgres`）正式承担起业务数据存储职责，实现服务重启后对话历史与工具调用状态的无损恢复。
+3. **极简、透明、无黑盒的技术选型**：
+   * 采用 `JdbcTemplate` 配合 PostgreSQL 原生 `ON CONFLICT (conversation_id) DO UPDATE`，以极低的系统开销实现了高吞吐快照持久化，完全避免了重型 ORM 的学习成本与兼容性隐患。
+4. **全套自动化测试回归**：
+   * `ChatMemoryPersistenceLiveTest` 与全工程测试 100% 通过，系统健壮性达到生产就绪标准。
+

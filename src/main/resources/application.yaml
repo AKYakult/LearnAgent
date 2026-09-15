@@ -4,6 +4,11 @@ server:
 spring:
   application:
     name: MyAgent
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:myagent_db}
+    username: ${POSTGRES_USER:myagent}
+    password: ${POSTGRES_PASSWORD:myagent_password}
+    driver-class-name: org.postgresql.Driver
 
 logging:
   level:

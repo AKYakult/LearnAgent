@@ -7,7 +7,10 @@ import dev.langchain4j.store.embedding.EmbeddingStore;
 import jin.agent.declarative.Assistant;
 import jin.agent.react.ReActEngine;
 import jin.agent.service.KnowledgeService;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,17 +30,20 @@ public class AgentController {
     private final EmbeddingModel embeddingModel;
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final KnowledgeService knowledgeService;
+    private final JdbcTemplate jdbcTemplate;
 
     public AgentController(ReActEngine reActEngine,
                            Assistant assistant,
                            EmbeddingModel embeddingModel,
                            EmbeddingStore<TextSegment> embeddingStore,
-                           KnowledgeService knowledgeService) {
+                           KnowledgeService knowledgeService,
+                           JdbcTemplate jdbcTemplate) {
         this.reActEngine = reActEngine;
         this.assistant = assistant;
         this.embeddingModel = embeddingModel;
         this.embeddingStore = embeddingStore;
         this.knowledgeService = knowledgeService;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     /**
@@ -62,21 +68,71 @@ public class AgentController {
     }
 
     /**
-     * 阶段三：声明式 @AiService 智能体端点
+     * 阶段三与阶段五：声明式 @AiService 智能体端点（支持通过 conversationId 进行多会话隔离）
      */
     @GetMapping("/declarative")
     public Map<String, Object> askDeclarative(
             @RequestParam(defaultValue = "请计算半径为 4.5 的圆的面积是多少？")
-            String query) {
+            String query,
+            @RequestParam(defaultValue = "default")
+            String conversationId) {
         long startTime = System.currentTimeMillis();
-        String answer = assistant.chat(query);
+        String answer = assistant.chat(conversationId, query);
         long cost = System.currentTimeMillis() - startTime;
+
+        // 记录可读流水至 chat_messages 表
+        recordMessage(conversationId, "USER", query);
+        recordMessage(conversationId, "ASSISTANT", answer);
+
         return Map.of(
+                "conversationId", conversationId,
                 "query", query,
                 "answer", answer,
                 "costMs", cost,
                 "status", "success"
         );
+    }
+
+    /**
+     * 阶段五：查询指定会话的历史可读消息列表（对标 Dify messages 历史）
+     */
+    @GetMapping("/conversations/{conversationId}")
+    public Map<String, Object> getConversationMessages(@PathVariable String conversationId) {
+        String sql = "SELECT id, sender, content, created_at FROM chat_messages WHERE conversation_id = ? ORDER BY id ASC";
+        List<Map<String, Object>> messages = jdbcTemplate.queryForList(sql, conversationId);
+        return Map.of(
+                "conversationId", conversationId,
+                "messageCount", messages.size(),
+                "messages", messages,
+                "status", "success"
+        );
+    }
+
+    /**
+     * 阶段五：清空指定会话记忆（同时清除运行时缓存与 PostgreSQL 持久化记录）
+     */
+    @DeleteMapping("/conversations/{conversationId}")
+    public Map<String, Object> evictConversation(@PathVariable String conversationId) {
+        // 1. 驱逐并清空 LangChain4j 运行时与快照存储 (PostgresChatMemoryStore)
+        assistant.evictChatMemory(conversationId);
+
+        // 2. 清空流水审计表
+        jdbcTemplate.update("DELETE FROM chat_messages WHERE conversation_id = ?", conversationId);
+
+        return Map.of(
+                "conversationId", conversationId,
+                "message", "会话上下文与历史记录已成功清除",
+                "status", "success"
+        );
+    }
+
+    private void recordMessage(String conversationId, String sender, String content) {
+        try {
+            String sql = "INSERT INTO chat_messages (conversation_id, sender, content, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)";
+            jdbcTemplate.update(sql, conversationId, sender, content);
+        } catch (Exception e) {
+            // 审计流水异常不阻断核心对话
+        }
     }
 
     /**

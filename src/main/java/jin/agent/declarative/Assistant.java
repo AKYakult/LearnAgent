@@ -1,13 +1,17 @@
 package jin.agent.declarative;
 
+import dev.langchain4j.service.MemoryId;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
+import dev.langchain4j.service.memory.ChatMemoryAccess;
 
 /**
- * 阶段三：基于 LangChain4j @AiService 理念的声明式智能体外观接口
- * 注意：不需要写任何实现类 (Impl)，LangChain4j 运行时会自动使用动态代理生成实现
+ * 阶段三与阶段五：基于 LangChain4j @AiService 理念的声明式智能体外观接口
+ * 1. 继承 ChatMemoryAccess，支持直接访问和清除底层会话上下文；
+ * 2. 支持 @MemoryId 注解，实现多租户/多会话彻底隔离与持久化存储；
+ * 3. 兼容单入参 chat(userMessage)，默认路由至 "default" 会话。
  */
-public interface Assistant {
+public interface Assistant extends ChatMemoryAccess {
 
     /**
      * 系统提示词 (SystemMessage)：智能体人设、行为准则与工具调用规范
@@ -20,5 +24,10 @@ public interface Assistant {
                 3. 支持针对复杂问题的链式推理（例如先调用 searchKnowledge 查阅资料，再调用数学工具进行计算）；
                 4. 回答应当礼貌自然、结构清晰、逻辑严密。
                 """)
+    String chat(@MemoryId Object memoryId, @UserMessage String userMessage);
+
+    /**
+     * 向前兼容的单入参对话方法（LangChain4j 内部会自动将其 memoryId 设为 "default"）
+     */
     String chat(@UserMessage String userMessage);
 }
