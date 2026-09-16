@@ -220,8 +220,9 @@ flowchart TD
     * 全工程 7 大测试套件全部执行成功，并在 `test.http` 中补充多会话请求样例。
 - [ ] **里程碑 5.2：流式打字机响应（StreamingChatModel + SSE）（待开始 ⏳）**
   * 使用 `StreamingChatModel` + Spring `SseEmitter` 或响应式流，实现类似 ChatGPT 的逐字输出效果与工具调用中间状态流式提示。
-- [ ] **里程碑 5.3：多工具协调与异常反思自愈（Self-Correction）（待开始 ⏳）**
-  * 当 Agent 调用的工具返回错误异常时，引导大模型分析失败原因，自主调整入参重试或尝试替代方案。
+- [ ] **里程碑 5.3：多工具协调与异常反思自愈（Self-Correction）（架构设计已就绪 📐）**
+  * 详细架构与落地设计参见文档：[`docs/TOOL_ERROR_HANDLING_AND_REFLECTION.md`](docs/TOOL_ERROR_HANDLING_AND_REFLECTION.md)
+  * 当 Agent 调用的工具返回错误异常时，通过技术内环（透明重试）与认知外环（LLM 反思自愈），引导大模型分析失败原因，自主调整入参重试或尝试替代方案。
 
 ### 5.2 里程碑 5.1 落地成果与复盘总结
 1. **彻底消除“单例内存串戏”隐患**：

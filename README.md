@@ -90,7 +90,7 @@ flowchart TD
 | **Phase 4** | **工业级 RAG 与单引擎混合检索** | 已完成 ✅ | MinIO 两层哈希防重、`documentId` 版本控制、Qdrant 原生多语言 BM25 + Dense + RRF | [`docs/PHASE4_GUIDE.md`](docs/PHASE4_GUIDE.md)<br>[`docs/DOCUMENT_ID_DESIGN.md`](docs/DOCUMENT_ID_DESIGN.md) |
 | **Phase 5.1** | **生产级多会话隔离与持久化** | 已完成 ✅ | 两层记忆模型（机器快照 + 人类流水）、PostgreSQL 原生 Upsert、自愈消息头清洗 | [`docs/PHASE5_GUIDE.md`](docs/PHASE5_GUIDE.md) |
 | **Phase 5.2** | **打字机流式响应 (SSE)** | 待开始 ⏳ | `StreamingChatModel` + `SseEmitter` 逐字流式打字与中间工具调用状态推送 | 规划中 |
-| **Phase 5.3** | **工具异常反思与自愈** | 待开始 ⏳ | 工具异常捕获反馈、LLM 反思自愈与智能重试 | 规划中 |
+| **Phase 5.3** | **工具异常反思与自愈** | 架构方案已就绪 📐 | 双环容错架构、ToolExecutionErrorHandler、防死循环熔断与自愈心智 | [`docs/TOOL_ERROR_HANDLING_AND_REFLECTION.md`](docs/TOOL_ERROR_HANDLING_AND_REFLECTION.md) |
 
 ---
 
