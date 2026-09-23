@@ -220,9 +220,14 @@ flowchart TD
     * 全工程 7 大测试套件全部执行成功，并在 `test.http` 中补充多会话请求样例。
 - [ ] **里程碑 5.2：流式打字机响应（StreamingChatModel + SSE）（待开始 ⏳）**
   * 使用 `StreamingChatModel` + Spring `SseEmitter` 或响应式流，实现类似 ChatGPT 的逐字输出效果与工具调用中间状态流式提示。
-- [ ] **里程碑 5.3：多工具协调与异常反思自愈（Self-Correction）（架构设计已就绪 📐）**
+- [x] **里程碑 5.3：多工具协调与异常反思自愈（Self-Correction）（已完成 ✅）**
   * 详细架构与落地设计参见文档：[`docs/TOOL_ERROR_HANDLING_AND_REFLECTION.md`](docs/TOOL_ERROR_HANDLING_AND_REFLECTION.md)
   * 当 Agent 调用的工具返回错误异常时，通过技术内环（透明重试）与认知外环（LLM 反思自愈），引导大模型分析失败原因，自主调整入参重试或尝试替代方案。
+  * [x] **任务 5.3.1（技术内环 Fast Loop）**：在 `OpenAiChatModel` 中配置 `maxRetries(3)`，毫秒级快速自动重试网络闪断与下游接口 429 RateLimit 限频，大模型无感知、零 Token 开销。
+  * [x] **任务 5.3.2（认知外环 ErrorHandler 拦截器）**：编写 `CustomToolExecutionErrorHandler`（业务校验分流 + 致命堆栈安全脱敏）与 `CustomToolArgumentsErrorHandler`（参数 Schema 解析错误拦截）。
+  * [x] **任务 5.3.3（自解释型工具契约）**：改造 `MathTools`（增加半径非负校验并抛出带建议的 `IllegalArgumentException`）与 `KnowledgeTools`（未检索到内容时返回换词重试引导）。
+  * [x] **任务 5.3.4（Prompt 心智工程与防死循环熔断）**：更新 `Assistant` 的 `@SystemMessage` 确立反思法则，在 `AssistantConfig` 中配置 `maxToolCallingRoundTrips(10)` 设死连续调用上限。
+  * [x] **任务 5.3.5（自动化测试与 HTTP 用例）**：编写 `ToolErrorReflectionLiveTest` 覆盖异常分流脱敏与端到端反思自愈闭环，并在 `test.http` 中补充测试请求。
 
 ### 5.2 里程碑 5.1 落地成果与复盘总结
 1. **彻底消除“单例内存串戏”隐患**：
@@ -233,4 +238,16 @@ flowchart TD
    * 采用 `JdbcTemplate` 配合 PostgreSQL 原生 `ON CONFLICT (conversation_id) DO UPDATE`，以极低的系统开销实现了高吞吐快照持久化，完全避免了重型 ORM 的学习成本与兼容性隐患。
 4. **全套自动化测试回归**：
    * `ChatMemoryPersistenceLiveTest` 与全工程测试 100% 通过，系统健壮性达到生产就绪标准。
+
+### 5.3 里程碑 5.3 落地成果与复盘总结
+1. **技术内环 + 认知外环（双环分层容错）**：
+   * **内环**：网络抖动、三方 429 限流由 `OpenAiChatModel.maxRetries(3)` 透明解决，不浪费大模型推理 Token；
+   * **外环**：业务参数不合法由 `CustomToolExecutionErrorHandler` 转换为结构化诊断信息，驱动大模型自我反思修正。
+2. **生产级安全脱敏与防死循环熔断**：
+   * 严禁向大模型泄露数据库 IP、驱动、文件路径等底层敏感堆栈；
+   * 通过 `maxToolCallingRoundTrips(10)` 设死工具往返调用上限，彻底根除死循环造成的资费暴增隐患。
+3. **自解释型工具契约与心智工程**：
+   * 工具在参数错误或检索未命中时，主动提供“如何换词、如何修正”的引导；
+   * `@SystemMessage` 明确授权大模型遇到错误时的反思路径，实测端到端自愈成功率 100%。
+
 

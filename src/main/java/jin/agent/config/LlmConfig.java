@@ -66,6 +66,7 @@ public class LlmConfig {
                 .modelName(modelName)
                 .temperature(temperature)
                 .timeout(Duration.ofSeconds(timeoutSeconds))
+                .maxRetries(3)                               // 技术内环：处理网络瞬时抖动与 429 速率限制，自动透明重试
                 .logRequests(logRequests)
                 .logResponses(logResponses)
                 .build();
