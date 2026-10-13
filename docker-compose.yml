@@ -84,6 +84,24 @@ services:
       - minio_data:/data
     restart: unless-stopped
 
+  # ----------------------------------------------------------------------------
+  # 6. Redis (高性能内存键值缓存与分布式锁，端口: 6379)
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7.4-alpine
+    container_name: myagent-redis
+    command: redis-server --save 60 1 --loglevel warning --requirepass ${REDIS_PASSWORD:-myagent_redis_password}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-myagent_redis_password}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
     driver: local
@@ -92,4 +110,6 @@ volumes:
   es_data:
     driver: local
   minio_data:
+    driver: local
+  redis_data:
     driver: local

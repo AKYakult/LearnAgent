@@ -66,6 +66,18 @@ try {
     Write-Host "❌ [MinIO] HTTP 9100 无法访问" -ForegroundColor Red
 }
 
+# 6. 检测 Redis 缓存与分布式锁
+try {
+    $redisResponse = Test-NetConnection -ComputerName "localhost" -Port 6379 -WarningAction SilentlyContinue
+    if ($redisResponse.TcpTestSucceeded) {
+        Write-Host "✅ [Redis 7.4 缓存服务] 端口 6379 连通正常" -ForegroundColor Green
+    } else {
+        Write-Host "❌ [Redis] 端口 6379 无法连接，请确认容器是否启动" -ForegroundColor Red
+    }
+} catch {
+    Write-Host "❌ [Redis] 检测异常: $_" -ForegroundColor Red
+}
+
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host "💡 提示：如需一键启动所有容器，请在根目录执行: docker compose up -d" -ForegroundColor Yellow
 Write-Host "=================================================" -ForegroundColor Cyan

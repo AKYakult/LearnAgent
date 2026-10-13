@@ -42,10 +42,16 @@ flowchart TD
         P5_3[多工具协调与容错反思 ⏳]
     end
 
+    subgraph Phase6["阶段 6：高并发中间件与面试冲刺（规划中 📌）"]
+        P6_1[Redis 二级缓存与 Redisson 分布式锁]
+        P6_2[Kafka 异步削峰流水线与消费幂等]
+    end
+
     Phase1 --> Phase2
     Phase2 --> Phase3
     Phase3 --> Phase4
     Phase4 --> Phase5
+    Phase5 --> Phase6
 ```
 
 ---
@@ -233,4 +239,18 @@ flowchart TD
    * 采用 `JdbcTemplate` 配合 PostgreSQL 原生 `ON CONFLICT (conversation_id) DO UPDATE`，以极低的系统开销实现了高吞吐快照持久化，完全避免了重型 ORM 的学习成本与兼容性隐患。
 4. **全套自动化测试回归**：
    * `ChatMemoryPersistenceLiveTest` 与全工程测试 100% 通过，系统健壮性达到生产就绪标准。
+
+---
+
+## 阶段六：高并发中间件演进与面试冲刺（规划中 📌）
+
+> 📖 **专项学习与面试冲刺规划**：详见 [`docs/REDIS_KAFKA_STUDY_PLAN.md`](docs/REDIS_KAFKA_STUDY_PLAN.md)
+
+* **核心目标**：引入企业级缓存与分布式流式引擎，提升系统吞吐量并作为后端面试的核心亮点。
+* **里程碑 6.1：Redis 缓存与分布式锁**
+  * 会话活跃上下文 L1 内存二级缓存（Redis + PostgreSQL 兜底）。
+  * Redisson 分布式锁与看门狗机制实现接口幂等与防刷。
+* **里程碑 6.2：Kafka 异步解耦与削峰填谷**
+  * 知识库超大文档切块与向量计算异步流水线（HTTP 快速返回 + Worker 消费）。
+  * 结合 Redis 实现消费端防重幂等校验与手动提交位移保证消息不丢失。
 
