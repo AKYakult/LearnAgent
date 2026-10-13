@@ -42,8 +42,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     runtimeOnly("org.postgresql:postgresql")
 
-    // 阶段 6 缓存与分布式锁支持 (Redis)
+    // 阶段 6 缓存与分布式锁支持 (Redis & Redisson)
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    implementation("org.redisson:redisson:3.38.1")
+    implementation("org.springframework.boot:spring-boot-starter-aspectj")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
