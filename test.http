@@ -206,3 +206,18 @@ DELETE http://localhost:8080/api/agent/conversations/user-alice
 
 ### 5.8 清空用户 B 的会话记忆与审计记录（彻底重置鲍勃）
 DELETE http://localhost:8080/api/agent/conversations/user-bob
+
+
+### ============================================================================
+### 阶段五·里程碑 5.3：工具调用容错、反思自愈与智能重试 (Self-Correction & Fallback)
+### ============================================================================
+
+### 5.9 工具业务校验拦截与 LLM 认知外环反思自愈（传入负数半径触发业务校验，模型自主反思修正）
+GET http://localhost:8080/api/agent/declarative?conversationId=test-self-heal&query=请计算半径为 -5.0 的圆的面积。
+
+### 5.10 知识检索未命中时的自解释引导反馈（防幻觉，模型如实告知未知）
+GET http://localhost:8080/api/agent/declarative?conversationId=test-doc-fallback&query=请从内部知识库查阅火星基地阿尔法二号发射工程的技术规范。
+
+### 5.11 复合链式调用正常回归（知识检索 + 数学计算，确保容错升级无回归破坏）
+GET http://localhost:8080/api/agent/declarative?conversationId=test-regression&query=请从知识库查出研发团队在几层办公，并计算层数乘以 10 等于多少？
+

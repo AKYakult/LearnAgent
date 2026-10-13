@@ -28,11 +28,17 @@ public class MathTools {
         return a * b;
     }
 
-    @Tool("计算圆的面积")
+    @Tool("计算圆的面积，半径必须为非负数")
     public double calculateCircleArea(
-            @P("圆的半径 radius") double radius
+            @P("圆的半径 radius，必须 >= 0") double radius
     ) {
         log.info("[Tool 触发] calculateCircleArea: 半径={}", radius);
+
+        // 业务校验：半径不能为负数，抛出 IllegalArgumentException 触发外环反思自愈
+        if (radius < 0) {
+            throw new IllegalArgumentException("半径不能为负数 (当前传入: " + radius + ")，请传入一个 >= 0 的数值。");
+        }
+
         return Math.PI * radius * radius;
     }
 }

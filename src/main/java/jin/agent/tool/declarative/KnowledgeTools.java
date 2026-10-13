@@ -33,7 +33,12 @@ public class KnowledgeTools {
 
         List<KnowledgeService.SearchResultItem> matches = knowledgeService.hybridSearch(query, 3);
         if (matches.isEmpty()) {
-            return "知识库中未检索到与 '" + query + "' 相关的文档片段。";
+            // 自解释型返回：明确告知未命中，并提供换词重试的引导建议，驱动大模型自主调整检索策略
+            return "【检索结果】知识库中未检索到与 '" + query + "' 相关的文档切片。\n"
+                    + "【建议】请尝试以下策略后重新调用 searchKnowledge：\n"
+                    + "  1. 去除专有名词中的标点修饰或特殊符号；\n"
+                    + "  2. 换用近义词或范围更广的关键词；\n"
+                    + "  3. 将复合问题拆分为更简短的子查询。";
         }
 
         return matches.stream()
