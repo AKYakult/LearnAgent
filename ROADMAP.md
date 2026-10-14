@@ -242,15 +242,20 @@ flowchart TD
 
 ---
 
-## 阶段六：高并发中间件演进与面试冲刺（规划中 📌）
+## 阶段六：高并发中间件演进与面试冲刺（进行中 🚀）
 
-> 📖 **专项学习与面试冲刺规划**：详见 [`docs/REDIS_KAFKA_STUDY_PLAN.md`](docs/REDIS_KAFKA_STUDY_PLAN.md)
+> 📖 **专项学习与面试冲刺规划**：详见 [`docs/REDIS_KAFKA_STUDY_PLAN.md`](docs/REDIS_KAFKA_STUDY_PLAN.md)  
+> 📖 **Kafka 快速掌握计划与实战 Demo**：详见 [kafka_quickstart_plan_and_demo.md](file:///C:/Users/Lecoo/.gemini/antigravity-cli/brain/b17e7892-819e-489a-a0cd-a05d2e18de15/kafka_quickstart_plan_and_demo.md)
 
 * **核心目标**：引入企业级缓存与分布式流式引擎，提升系统吞吐量并作为后端面试的核心亮点。
-* **里程碑 6.1：Redis 缓存与分布式锁**
-  * 会话活跃上下文 L1 内存二级缓存（Redis + PostgreSQL 兜底）。
-  * Redisson 分布式锁与看门狗机制实现接口幂等与防刷。
-* **里程碑 6.2：Kafka 异步解耦与削峰填谷**
-  * 知识库超大文档切块与向量计算异步流水线（HTTP 快速返回 + Worker 消费）。
-  * 结合 Redis 实现消费端防重幂等校验与手动提交位移保证消息不丢失。
+* **里程碑 6.1：Redis 缓存与分布式锁（已完成 ✅）**
+  * `RedisDataStructuresLiveTest`：5 大核心数据结构（String/List/Hash/Set/ZSet）底层原理与实操验证。
+  * `CachePatternsAndConsistencyLiveTest`：缓存穿透（Bloom Filter/空对象）、击穿（互斥锁）、雪崩（随机TTL）与 Cache-Aside 双写一致性。
+  * `RedissonDistributedLockLiveTest`：Redisson 分布式锁互斥性、看门狗自动续期机制与 `@PreventDuplicate` 防重切面。
+* **里程碑 6.2：Kafka 异步解耦与削峰填谷（当前进行 🚀）**
+  * Docker 编排中引入轻量级 Kafka KRaft 单节点架构（原生脱离 ZooKeeper）。
+  * 引入 `spring-kafka`，配置 `acks=all` 可靠性投递与 `manual_immediate` 手动位移提交。
+  * 编写 `AgentTaskProducer` 与 `AgentTaskConsumer`，实现基于业务 Key 的单分区严格保序。
+  * 结合已有的 Redis 基础设施，实现消费端 `SETNX` 幂等防重流水表。
+  * `KafkaFundamentalsLiveTest`：端到端覆盖异步回调、单分区顺序消费、手动 Ack 与重复投递防御。
 

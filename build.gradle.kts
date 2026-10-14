@@ -47,6 +47,9 @@ dependencies {
     implementation("org.redisson:redisson:3.38.1")
     implementation("org.springframework.boot:spring-boot-starter-aspectj")
 
+    // 阶段 6 消息队列异步削峰与流处理支持 (Kafka)
+    implementation("org.springframework.kafka:spring-kafka")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

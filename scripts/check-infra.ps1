@@ -78,6 +78,18 @@ try {
     Write-Host "❌ [Redis] 检测异常: $_" -ForegroundColor Red
 }
 
+# 7. 检测 Kafka 分布式流式引擎 (KRaft)
+try {
+    $kafkaResponse = Test-NetConnection -ComputerName "localhost" -Port 9092 -WarningAction SilentlyContinue
+    if ($kafkaResponse.TcpTestSucceeded) {
+        Write-Host "✅ [Kafka KRaft 消息引擎] 端口 9092 连通正常" -ForegroundColor Green
+    } else {
+        Write-Host "❌ [Kafka] 端口 9092 无法连接，请确认容器是否启动" -ForegroundColor Red
+    }
+} catch {
+    Write-Host "❌ [Kafka] 检测异常: $_" -ForegroundColor Red
+}
+
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host "💡 提示：如需一键启动所有容器，请在根目录执行: docker compose up -d" -ForegroundColor Yellow
 Write-Host "=================================================" -ForegroundColor Cyan

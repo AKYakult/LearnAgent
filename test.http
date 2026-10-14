@@ -221,3 +221,17 @@ GET http://localhost:8080/api/agent/declarative?conversationId=test-doc-fallback
 ### 5.11 复合链式调用正常回归（知识检索 + 数学计算，确保容错升级无回归破坏）
 GET http://localhost:8080/api/agent/declarative?conversationId=test-regression&query=请从知识库查出研发团队在几层办公，并计算层数乘以 10 等于多少？
 
+
+### ============================================================================
+### 阶段六：Kafka 异步削峰、流式解耦与消费端幂等防重
+### ============================================================================
+
+### 6.1 发送异步任务（HTTP 202 快速返回，后台 Worker 异步处理并手动提交 Offset）
+GET http://localhost:8080/api/kafka/send?topic=agent-task-topic&partitionKey=order-888&payload={"action":"PROCESS_DATA","amount":100}
+
+### 6.2 模拟发送相同 messageId（首次成功消费）
+GET http://localhost:8080/api/kafka/send?topic=agent-task-topic&partitionKey=order-999&messageId=task-fixed-uuid-1001&payload={"action":"RECHARGE","amount":500}
+
+### 6.3 再次发送相同 messageId（验证消费端 Redis SETNX 拦截重复消费，日志显示跳过并提交 Offset）
+GET http://localhost:8080/api/kafka/send?topic=agent-task-topic&partitionKey=order-999&messageId=task-fixed-uuid-1001&payload={"action":"RECHARGE","amount":500}
+
